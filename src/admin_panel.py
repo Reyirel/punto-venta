@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 from models.database import connect
+import sqlite3
 
 class AdminPanel:
     def __init__(self, master):
@@ -15,6 +16,7 @@ class AdminPanel:
         # Agregar opciones al menú
         self.menu.add_command(label="Agregar Usuarios", command=self.show_add_user)
         self.menu.add_command(label="Agregar Productos", command=self.show_add_product)
+        self.menu.add_command(label="Ver Productos", command=self.show_view_products)
         self.menu.add_command(label="Generar Reportes", command=self.show_reports)
         self.menu.add_command(label="Realizar Ventas", command=self.show_sales)
 
@@ -107,6 +109,108 @@ class AdminPanel:
                 messagebox.showerror("Error", "El código de barras ya existe")
         else:
             messagebox.showerror("Error", "Por favor, complete todos los campos")
+
+    def show_view_products(self):
+        self.clear_frame()
+        tk.Label(self.main_frame, text="Ver Productos", font=("Arial", 16)).pack(pady=10)
+
+        # Frame para el filtro
+        filter_frame = tk.Frame(self.main_frame)
+        filter_frame.pack(fill=tk.X, padx=10, pady=5)
+
+        tk.Label(filter_frame, text="Filtrar por nombre:").pack(side=tk.LEFT)
+        self.filter_entry = tk.Entry(filter_frame)
+        self.filter_entry.pack(side=tk.LEFT, padx=5)
+        tk.Button(filter_frame, text="Filtrar", command=self.filter_products).pack(side=tk.LEFT)
+
+        # Tabla de productos
+        self.tree = ttk.Treeview(self.main_frame, columns=("ID", "Nombre", "Código de Barras", "Precio"), show="headings")
+        self.tree.heading("ID", text="ID")
+        self.tree.heading("Nombre", text="Nombre")
+        self.tree.heading("Código de Barras", text="Código de Barras")
+        self.tree.heading("Precio", text="Precio")
+        self.tree.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        # Botón para modificar producto seleccionado
+        tk.Button(self.main_frame, text="Modificar Producto Seleccionado", command=self.modify_product).pack(pady=10)
+
+        # Cargar productos
+        self.load_products_to_tree()
+
+    def load_products_to_tree(self, filter_text=""):
+        # Limpiar la tabla
+        for i in self.tree.get_children():
+            self.tree.delete(i)
+
+        # Obtener productos de la base de datos
+        conn = connect()
+        cursor = conn.cursor()
+        if filter_text:
+            cursor.execute('SELECT * FROM products WHERE name LIKE ?', ('%' + filter_text + '%',))
+        else:
+            cursor.execute('SELECT * FROM products')
+        
+        for product in cursor.fetchall():
+            self.tree.insert("", "end", values=product)
+        
+        conn.close()
+
+    def filter_products(self):
+        filter_text = self.filter_entry.get()
+        self.load_products_to_tree(filter_text)
+
+    def modify_product(self):
+        selected_item = self.tree.selection()
+        if not selected_item:
+            messagebox.showerror("Error", "Por favor, seleccione un producto para modificar")
+            return
+
+        product = self.tree.item(selected_item)['values']
+        
+        # Crear una nueva ventana para modificar el producto
+        modify_window = tk.Toplevel(self.master)
+        modify_window.title(f"Modificar Producto: {product[1]}")
+        
+        tk.Label(modify_window, text="Nombre:").grid(row=0, column=0, padx=5, pady=5)
+        name_entry = tk.Entry(modify_window)
+        name_entry.insert(0, product[1])
+        name_entry.grid(row=0, column=1, padx=5, pady=5)
+
+        tk.Label(modify_window, text="Código de Barras:").grid(row=1, column=0, padx=5, pady=5)
+        barcode_entry = tk.Entry(modify_window)
+        barcode_entry.insert(0, product[2])
+        barcode_entry.grid(row=1, column=1, padx=5, pady=5)
+
+        tk.Label(modify_window, text="Precio:").grid(row=2, column=0, padx=5, pady=5)
+        price_entry = tk.Entry(modify_window)
+        price_entry.insert(0, product[3])
+        price_entry.grid(row=2, column=1, padx=5, pady=5)
+
+        def save_changes():
+            new_name = name_entry.get()
+            new_barcode = barcode_entry.get()
+            new_price = price_entry.get()
+
+            if new_name and new_barcode and new_price:
+                try:
+                    new_price = float(new_price)
+                    conn = connect()
+                    cursor = conn.cursor()
+                    cursor.execute('UPDATE products SET name=?, barcode=?, price=? WHERE id=?', 
+                                   (new_name, new_barcode, new_price, product[0]))
+                    conn.commit()
+                    conn.close()
+                    messagebox.showinfo("Éxito", f"Producto '{new_name}' actualizado exitosamente")
+                    modify_window.destroy()
+                    self.load_products_to_tree()  # Recargar la tabla
+                except ValueError:
+                    messagebox.showerror("Error", "El precio debe ser un número válido")
+                except sqlite3.IntegrityError:
+                    messagebox.showerror("Error", "El código de barras ya existe")
+            else:
+                messagebox.showerror("Error", "Por favor, complete todos los campos")
+
+        tk.Button(modify_window, text="Guardar Cambios", command=save_changes).grid(row=3, column=0, columnspan=2, pady=10)
 
     def show_reports(self):
         self.clear_frame()
