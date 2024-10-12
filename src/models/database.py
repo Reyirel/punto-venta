@@ -1,15 +1,13 @@
 import sqlite3
 
 def connect():
-    # Conectamos a la base de datos o la creamos si no existe
-    conn = sqlite3.connect('src/data/punto_venta.db')
-    return conn
+    return sqlite3.connect('src/data/punto_venta.db')
 
 def create_tables():
     conn = connect()
     cursor = conn.cursor()
 
-    # Tabla de usuarios
+    # Tabla de usuarios (ya existente)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -19,13 +17,35 @@ def create_tables():
         )
     ''')
 
-    # Tabla de productos
+    # Tabla de productos (ya existente)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS products (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
             barcode TEXT NOT NULL UNIQUE,
             price REAL NOT NULL
+        )
+    ''')
+
+    # Nueva tabla de ventas
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS sales (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT NOT NULL,
+            total REAL NOT NULL
+        )
+    ''')
+
+    # Nueva tabla de detalles de venta
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS sale_details (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sale_id INTEGER,
+            product_id INTEGER,
+            quantity INTEGER,
+            price REAL,
+            FOREIGN KEY (sale_id) REFERENCES sales (id),
+            FOREIGN KEY (product_id) REFERENCES products (id)
         )
     ''')
 
@@ -36,7 +56,6 @@ def add_default_users():
     conn = connect()
     cursor = conn.cursor()
 
-    # Usuarios predeterminados (admin y vendedor)
     cursor.execute('''
         INSERT OR IGNORE INTO users (username, password, role) 
         VALUES 
