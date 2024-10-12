@@ -138,8 +138,9 @@ class AdminPanel:
         self.tree.heading("Stock", text="Stock")
         self.tree.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        # Botón para modificar producto seleccionado
-        tk.Button(self.main_frame, text="Modificar Producto Seleccionado", command=self.modify_product).pack(pady=10)
+        # Botones para modificar y eliminar producto seleccionado
+        tk.Button(self.main_frame, text="Modificar Producto Seleccionado", command=self.modify_product).pack(pady=5)
+        tk.Button(self.main_frame, text="Eliminar Producto Seleccionado", command=self.delete_product).pack(pady=5)
 
         # Cargar productos
         self.load_products_to_tree()
@@ -208,6 +209,9 @@ class AdminPanel:
                 try:
                     new_price = float(new_price)
                     new_stock = int(new_stock)
+                    if new_stock < 0:
+                        messagebox.showerror("Error", "La cantidad en stock no puede ser negativa")
+                        return
                     conn = connect()
                     cursor = conn.cursor()
                     cursor.execute('UPDATE products SET name=?, barcode=?, price=?, stock=? WHERE id=?', 
@@ -225,6 +229,23 @@ class AdminPanel:
                 messagebox.showerror("Error", "Por favor, complete todos los campos")
 
         tk.Button(modify_window, text="Guardar Cambios", command=save_changes).grid(row=4, column=0, columnspan=2, pady=10)
+
+    def delete_product(self):
+        selected_item = self.tree.selection()
+        if not selected_item:
+            messagebox.showerror("Error", "Por favor, seleccione un producto para eliminar")
+            return
+
+        product = self.tree.item(selected_item)['values']
+        confirm = messagebox.askyesno("Confirmar", f"¿Está seguro de que desea eliminar el producto '{product[1]}'?")
+        if confirm:
+            conn = connect()
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM products WHERE id = ?', (product[0],))
+            conn.commit()
+            conn.close()
+            messagebox.showinfo("Éxito", f"Producto '{product[1]}' eliminado exitosamente")
+            self.load_products_to_tree()  # Recargar la tabla
 
     def show_reports(self):
         self.clear_frame()
