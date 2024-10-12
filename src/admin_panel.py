@@ -154,7 +154,10 @@ class AdminPanel:
         conn = connect()
         cursor = conn.cursor()
         if filter_text:
-            cursor.execute('SELECT * FROM products WHERE name LIKE ?', ('%' + filter_text + '%',))
+            cursor.execute('''
+                SELECT * FROM products 
+                WHERE id LIKE ? OR name LIKE ? OR barcode LIKE ? OR price LIKE ?
+            ''', ('%' + filter_text + '%', '%' + filter_text + '%', '%' + filter_text + '%', '%' + filter_text + '%'))
         else:
             cursor.execute('SELECT * FROM products')
         
