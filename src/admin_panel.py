@@ -86,25 +86,31 @@ class AdminPanel:
         self.price_entry = tk.Entry(self.main_frame)
         self.price_entry.pack()
 
+        tk.Label(self.main_frame, text="Cantidad en stock:").pack()
+        self.stock_entry = tk.Entry(self.main_frame)
+        self.stock_entry.pack()
+
         tk.Button(self.main_frame, text="Agregar Producto", command=self.add_product).pack(pady=10)
 
     def add_product(self):
         name = self.product_name_entry.get()
         barcode = self.barcode_entry.get()
         price = self.price_entry.get()
+        stock = self.stock_entry.get()
 
-        if name and barcode and price:
+        if name and barcode and price and stock:
             try:
                 price = float(price)
+                stock = int(stock)
                 conn = connect()
                 cursor = conn.cursor()
-                cursor.execute('INSERT INTO products (name, barcode, price) VALUES (?, ?, ?)', 
-                               (name, barcode, price))
+                cursor.execute('INSERT INTO products (name, barcode, price, stock) VALUES (?, ?, ?, ?)', 
+                               (name, barcode, price, stock))
                 conn.commit()
                 conn.close()
                 messagebox.showinfo("Éxito", f"Producto '{name}' agregado exitosamente")
             except ValueError:
-                messagebox.showerror("Error", "El precio debe ser un número válido")
+                messagebox.showerror("Error", "El precio y la cantidad deben ser números válidos")
             except sqlite3.IntegrityError:
                 messagebox.showerror("Error", "El código de barras ya existe")
         else:
@@ -124,11 +130,12 @@ class AdminPanel:
         tk.Button(filter_frame, text="Filtrar", command=self.filter_products).pack(side=tk.LEFT)
 
         # Tabla de productos
-        self.tree = ttk.Treeview(self.main_frame, columns=("ID", "Nombre", "Código de Barras", "Precio"), show="headings")
+        self.tree = ttk.Treeview(self.main_frame, columns=("ID", "Nombre", "Código de Barras", "Precio", "Stock"), show="headings")
         self.tree.heading("ID", text="ID")
         self.tree.heading("Nombre", text="Nombre")
         self.tree.heading("Código de Barras", text="Código de Barras")
         self.tree.heading("Precio", text="Precio")
+        self.tree.heading("Stock", text="Stock")
         self.tree.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
         # Botón para modificar producto seleccionado
@@ -186,31 +193,38 @@ class AdminPanel:
         price_entry.insert(0, product[3])
         price_entry.grid(row=2, column=1, padx=5, pady=5)
 
+        tk.Label(modify_window, text="Stock:").grid(row=3, column=0, padx=5, pady=5)
+        stock_entry = tk.Entry(modify_window)
+        stock_entry.insert(0, product[4])
+        stock_entry.grid(row=3, column=1, padx=5, pady=5)
+
         def save_changes():
             new_name = name_entry.get()
             new_barcode = barcode_entry.get()
             new_price = price_entry.get()
+            new_stock = stock_entry.get()
 
-            if new_name and new_barcode and new_price:
+            if new_name and new_barcode and new_price and new_stock:
                 try:
                     new_price = float(new_price)
+                    new_stock = int(new_stock)
                     conn = connect()
                     cursor = conn.cursor()
-                    cursor.execute('UPDATE products SET name=?, barcode=?, price=? WHERE id=?', 
-                                   (new_name, new_barcode, new_price, product[0]))
+                    cursor.execute('UPDATE products SET name=?, barcode=?, price=?, stock=? WHERE id=?', 
+                                   (new_name, new_barcode, new_price, new_stock, product[0]))
                     conn.commit()
                     conn.close()
                     messagebox.showinfo("Éxito", f"Producto '{new_name}' actualizado exitosamente")
                     modify_window.destroy()
                     self.load_products_to_tree()  # Recargar la tabla
                 except ValueError:
-                    messagebox.showerror("Error", "El precio debe ser un número válido")
+                    messagebox.showerror("Error", "El precio y la cantidad deben ser números válidos")
                 except sqlite3.IntegrityError:
                     messagebox.showerror("Error", "El código de barras ya existe")
             else:
                 messagebox.showerror("Error", "Por favor, complete todos los campos")
 
-        tk.Button(modify_window, text="Guardar Cambios", command=save_changes).grid(row=3, column=0, columnspan=2, pady=10)
+        tk.Button(modify_window, text="Guardar Cambios", command=save_changes).grid(row=4, column=0, columnspan=2, pady=10)
 
     def show_reports(self):
         self.clear_frame()
@@ -274,7 +288,35 @@ class AdminPanel:
 
     def finish_sale(self):
         if self.sale_listbox.size() > 0:
-            # Aquí implementarías la lógica para guardar la venta en la base de datos
+            conn = connect()
+            cursor = conn.cursor()
+            total = 0
+            sale_items = []
+
+            for i in range(self.sale_listbox.size()):
+                item = self.sale_listbox.get(i)
+                product_name, rest = item.split(" - $")
+                price, quantity = rest.split(" x ")
+                price = float(price)
+                quantity = int(quantity)
+                total += price * quantity
+                sale_items.append((product_name, price, quantity))
+
+            cursor.execute('INSERT INTO sales (date, total) VALUES (datetime("now"), ?)', (total,))
+            sale_id = cursor.lastrowid
+
+            for product_name, price, quantity in sale_items:
+                cursor.execute('SELECT id, stock FROM products WHERE name = ?', (product_name,))
+                product = cursor.fetchone()
+                if product:
+                    product_id, stock = product
+                    new_stock = stock - quantity
+                    cursor.execute('UPDATE products SET stock = ? WHERE id = ?', (new_stock, product_id))
+                    cursor.execute('INSERT INTO sale_details (sale_id, product_id, quantity, price) VALUES (?, ?, ?, ?)', 
+                                   (sale_id, product_id, quantity, price))
+
+            conn.commit()
+            conn.close()
             messagebox.showinfo("Venta", "Venta realizada con éxito")
             self.sale_listbox.delete(0, tk.END)
         else:
