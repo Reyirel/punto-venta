@@ -124,7 +124,7 @@ class AdminPanel:
         filter_frame = tk.Frame(self.main_frame)
         filter_frame.pack(fill=tk.X, padx=10, pady=5)
 
-        tk.Label(filter_frame, text="Filtrar por nombre:").pack(side=tk.LEFT)
+        tk.Label(filter_frame, text="Filtrar por:").pack(side=tk.LEFT)
         self.filter_entry = tk.Entry(filter_frame)
         self.filter_entry.pack(side=tk.LEFT, padx=5)
         tk.Button(filter_frame, text="Filtrar", command=self.filter_products).pack(side=tk.LEFT)
@@ -154,7 +154,62 @@ class AdminPanel:
         conn = connect()
         cursor = conn.cursor()
         if filter_text:
-            cursor.execute('SELECT * FROM products WHERE name LIKE ?', ('%' + filter_text + '%',))
+            cursor.execute('''
+                SELECT * FROM products 
+                WHERE id LIKE ? OR name LIKE ? OR barcode LIKE ? OR price LIKE ? OR stock LIKE ?
+            ''', ('%' + filter_text + '%', '%' + filter_text + '%', '%' + filter_text + '%', '%' + filter_text + '%', '%' + filter_text + '%'))
+        else:
+            cursor.execute('SELECT * FROM products')
+        
+        for product in cursor.fetchall():
+            self.tree.insert("", "end", values=product)
+        
+        conn.close()
+
+    def filter_products(self):
+        filter_text = self.filter_entry.get()
+        self.load_products_to_tree(filter_text)
+        self.clear_frame()
+        tk.Label(self.main_frame, text="Ver Productos", font=("Arial", 16)).pack(pady=10)
+
+        # Frame para el filtro
+        filter_frame = tk.Frame(self.main_frame)
+        filter_frame.pack(fill=tk.X, padx=10, pady=5)
+
+        tk.Label(filter_frame, text="Filtrar por:").pack(side=tk.LEFT)
+        self.filter_entry = tk.Entry(filter_frame)
+        self.filter_entry.pack(side=tk.LEFT, padx=5)
+        tk.Button(filter_frame, text="Filtrar", command=self.filter_products).pack(side=tk.LEFT)
+
+        # Tabla de productos
+        self.tree = ttk.Treeview(self.main_frame, columns=("ID", "Nombre", "Código de Barras", "Precio", "Stock"), show="headings")
+        self.tree.heading("ID", text="ID")
+        self.tree.heading("Nombre", text="Nombre")
+        self.tree.heading("Código de Barras", text="Código de Barras")
+        self.tree.heading("Precio", text="Precio")
+        self.tree.heading("Stock", text="Stock")
+        self.tree.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        # Botones para modificar y eliminar producto seleccionado
+        tk.Button(self.main_frame, text="Modificar Producto Seleccionado", command=self.modify_product).pack(pady=5)
+        tk.Button(self.main_frame, text="Eliminar Producto Seleccionado", command=self.delete_product).pack(pady=5)
+
+        # Cargar productos
+        self.load_products_to_tree()
+
+    def load_products_to_tree(self, filter_text=""):
+        # Limpiar la tabla
+        for i in self.tree.get_children():
+            self.tree.delete(i)
+
+        # Obtener productos de la base de datos
+        conn = connect()
+        cursor = conn.cursor()
+        if filter_text:
+            cursor.execute('''
+                SELECT * FROM products 
+                WHERE id LIKE ? OR name LIKE ? OR barcode LIKE ? OR price LIKE ? OR stock LIKE ?
+            ''', ('%' + filter_text + '%', '%' + filter_text + '%', '%' + filter_text + '%', '%' + filter_text + '%', '%' + filter_text + '%'))
         else:
             cursor.execute('SELECT * FROM products')
         
@@ -209,26 +264,63 @@ class AdminPanel:
                 try:
                     new_price = float(new_price)
                     new_stock = int(new_stock)
-                    if new_stock < 0:
-                        messagebox.showerror("Error", "La cantidad en stock no puede ser negativa")
-                        return
+                    
                     conn = connect()
                     cursor = conn.cursor()
-                    cursor.execute('UPDATE products SET name=?, barcode=?, price=?, stock=? WHERE id=?', 
-                                   (new_name, new_barcode, new_price, new_stock, product[0]))
+                    
+                    cursor.execute('''
+                        UPDATE products 
+                        SET name = ?, barcode = ?, price = ?, stock = ? 
+                        WHERE id = ?
+                    ''', (new_name, new_barcode, new_price, new_stock, product[0]))
+                    
                     conn.commit()
                     conn.close()
-                    messagebox.showinfo("Éxito", f"Producto '{new_name}' actualizado exitosamente")
+                    messagebox.showinfo("Éxito", "Producto modificado exitosamente")
                     modify_window.destroy()
-                    self.load_products_to_tree()  # Recargar la tabla
+                    self.load_products_to_tree()
                 except ValueError:
-                    messagebox.showerror("Error", "El precio y la cantidad deben ser números válidos")
-                except sqlite3.IntegrityError:
-                    messagebox.showerror("Error", "El código de barras ya existe")
+                    messagebox.showerror("Error", "Por favor, ingrese valores válidos")
             else:
                 messagebox.showerror("Error", "Por favor, complete todos los campos")
 
+        def update_stock():
+            new_stock = stock_entry.get()
+            if new_stock:
+                try:
+                    new_stock = int(new_stock)
+                    
+                    conn = connect()
+                    cursor = conn.cursor()
+                    
+                    # Obtener el stock actual del producto
+                    cursor.execute('SELECT stock FROM products WHERE id = ?', (product[0],))
+                    current_stock = cursor.fetchone()[0]
+                    
+                    # Actualizar el stock según la lógica especificada
+                    if current_stock < 0:
+                        updated_stock = current_stock + new_stock
+                    else:
+                        updated_stock = current_stock + new_stock
+                    
+                    cursor.execute('''
+                        UPDATE products 
+                        SET stock = ? 
+                        WHERE id = ?
+                    ''', (updated_stock, product[0]))
+                    
+                    conn.commit()
+                    conn.close()
+                    messagebox.showinfo("Éxito", "Stock actualizado exitosamente")
+                    modify_window.destroy()
+                    self.load_products_to_tree()
+                except ValueError:
+                    messagebox.showerror("Error", "Por favor, ingrese un valor válido")
+            else:
+                messagebox.showerror("Error", "Por favor, ingrese una cantidad de stock")
+
         tk.Button(modify_window, text="Guardar Cambios", command=save_changes).grid(row=4, column=0, columnspan=2, pady=10)
+        tk.Button(modify_window, text="Actualizar Cantidad de Stock", command=update_stock).grid(row=5, column=0, columnspan=2, pady=10)
 
     def delete_product(self):
         selected_item = self.tree.selection()
@@ -262,7 +354,6 @@ class AdminPanel:
     def generate_inventory_report(self):
         # Implementa la lógica para generar el reporte de inventario
         messagebox.showinfo("Reporte", "Generando reporte de inventario...")
-
     def show_sales(self):
         self.clear_frame()
         tk.Label(self.main_frame, text="Realizar Venta", font=("Arial", 16)).pack(pady=10)
