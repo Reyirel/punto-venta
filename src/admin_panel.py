@@ -444,6 +444,10 @@ class AdminPanel:
         export_button = tk.Button(self.main_frame, text="Descargar Excel", command=self.export_to_excel)
         export_button.pack(pady=10)
 
+        # Label para mostrar el total de las ventas
+        self.total_label = tk.Label(self.main_frame, text="Total de Ventas: 0", font=("Arial", 14))
+        self.total_label.pack(pady=10)
+
         # Cargar ventas en la tabla
         self.load_sales()
 
@@ -478,9 +482,14 @@ class AdminPanel:
 
         conn.close()
 
-        # Insertar ventas en la tabla
+        # Insertar ventas en la tabla y calcular el total
+        total_sales = 0
         for sale in sales:
             self.sales_tree.insert("", "end", values=sale)
+            total_sales += sale[2]  # Sumar el valor del total de cada venta
+
+        # Actualizar el label con el total de ventas
+        self.total_label.config(text=f"Total de Ventas: {total_sales}")
 
     def update_sales(self):
         # Actualiza la tabla cada vez que se realice una compra
@@ -493,13 +502,18 @@ class AdminPanel:
         # Convertir los datos a un DataFrame de pandas
         df = pd.DataFrame(sales_data, columns=["ID", "Fecha", "Total"])
 
-        # Preguntar por la ubicación donde guardar el archivo
-        file_path = filedialog.asksaveasfilename(defaultextension=".xlsx", filetypes=[("Excel files", "*.xlsx")])
+        # Generar el nombre del archivo con la fecha y hora actuales
+        current_datetime = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        default_filename = f"reporte_ventas_{current_datetime}.xlsx"
+
+        # Preguntar por la ubicación donde guardar el archivo, usando el nombre generado por defecto
+        file_path = filedialog.asksaveasfilename(defaultextension=".xlsx", initialfile=default_filename, filetypes=[("Excel files", "*.xlsx")])
 
         if file_path:
             # Guardar el DataFrame en un archivo Excel
             df.to_excel(file_path, index=False)
             print(f"Archivo guardado en {file_path}")
+
 
 # ---------------------------------------------
     
