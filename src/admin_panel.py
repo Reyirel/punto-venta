@@ -35,21 +35,129 @@ class AdminPanel:
         self.clear_frame()
         tk.Label(self.main_frame, text="Agregar Usuario", font=("Arial", 16)).pack(pady=10)
 
-        tk.Label(self.main_frame, text="Nombre de usuario:").pack()
-        self.username_entry = tk.Entry(self.main_frame)
-        self.username_entry.pack()
+        # User input fields
+        input_frame = tk.Frame(self.main_frame)
+        input_frame.pack(pady=10)
 
-        tk.Label(self.main_frame, text="Contraseña:").pack()
-        self.password_entry = tk.Entry(self.main_frame, show="*")
-        self.password_entry.pack()
+        tk.Label(input_frame, text="Nombre de usuario:").grid(row=0, column=0, sticky="e", padx=5, pady=2)
+        self.username_entry = tk.Entry(input_frame)
+        self.username_entry.grid(row=0, column=1, padx=5, pady=2)
 
-        tk.Label(self.main_frame, text="Rol:").pack()
+        tk.Label(input_frame, text="Contraseña:").grid(row=1, column=0, sticky="e", padx=5, pady=2)
+        self.password_entry = tk.Entry(input_frame, show="*")
+        self.password_entry.grid(row=1, column=1, padx=5, pady=2)
+
+        tk.Label(input_frame, text="Rol:").grid(row=2, column=0, sticky="e", padx=5, pady=2)
         self.role_var = tk.StringVar(value="vendedor")
-        tk.Radiobutton(self.main_frame, text="Admin", variable=self.role_var, value="admin").pack()
-        tk.Radiobutton(self.main_frame, text="Vendedor", variable=self.role_var, value="vendedor").pack()
+        tk.Radiobutton(input_frame, text="Admin", variable=self.role_var, value="admin").grid(row=2, column=1, sticky="w", padx=5, pady=2)
+        tk.Radiobutton(input_frame, text="Vendedor", variable=self.role_var, value="vendedor").grid(row=2, column=1, padx=5, pady=2)
 
-        tk.Button(self.main_frame, text="Agregar Usuario", command=self.add_user).pack(pady=10)
+        tk.Button(input_frame, text="Agregar Usuario", command=self.add_user).grid(row=3, column=0, columnspan=2, pady=10)
 
+        # User table
+        table_frame = tk.Frame(self.main_frame)
+        table_frame.pack(pady=10, fill=tk.BOTH, expand=True)
+
+        self.user_tree = ttk.Treeview(table_frame, columns=("username", "password", "role"), show="headings")
+        self.user_tree.heading("username", text="Nombre de Usuario")
+        self.user_tree.heading("password", text="Contraseña")
+        self.user_tree.heading("role", text="Rol")
+        self.user_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        # Scrollbar for the table
+        scrollbar = ttk.Scrollbar(table_frame, orient=tk.VERTICAL, command=self.user_tree.yview)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.user_tree.configure(yscrollcommand=scrollbar.set)
+
+        # Load users into the table
+        self.load_users()
+
+        # Buttons for editing and deleting users
+        button_frame = tk.Frame(self.main_frame)
+        button_frame.pack(pady=10)
+
+        tk.Button(button_frame, text="Editar Usuario", command=self.edit_user).pack(side=tk.LEFT, padx=5)
+        tk.Button(button_frame, text="Eliminar Usuario", command=self.delete_user).pack(side=tk.LEFT, padx=5)
+
+    def load_users(self):
+        # Clear existing items
+        for i in self.user_tree.get_children():
+            self.user_tree.delete(i)
+
+        # Fetch users from the database
+        conn = connect()
+        cursor = conn.cursor()
+        cursor.execute('SELECT username, password, role FROM users')
+        users = cursor.fetchall()
+        conn.close()
+
+        # Insert users into the table
+        for user in users:
+            self.user_tree.insert("", "end", values=user)
+
+    def edit_user(self):
+        selected_item = self.user_tree.selection()
+        if not selected_item:
+            messagebox.showerror("Error", "Por favor, seleccione un usuario para editar")
+            return
+
+        user = self.user_tree.item(selected_item)['values']
+        
+        # Create a new window for editing the user
+        edit_window = tk.Toplevel(self.master)
+        edit_window.title(f"Editar Usuario: {user[0]}")
+        
+        tk.Label(edit_window, text="Nombre de usuario:").grid(row=0, column=0, padx=5, pady=5)
+        username_entry = tk.Entry(edit_window)
+        username_entry.insert(0, user[0])
+        username_entry.grid(row=0, column=1, padx=5, pady=5)
+
+        tk.Label(edit_window, text="Contraseña:").grid(row=1, column=0, padx=5, pady=5)
+        password_entry = tk.Entry(edit_window, show="*")
+        password_entry.insert(0, user[1])
+        password_entry.grid(row=1, column=1, padx=5, pady=5)
+
+        tk.Label(edit_window, text="Rol:").grid(row=2, column=0, padx=5, pady=5)
+        role_var = tk.StringVar(value=user[2])
+        tk.Radiobutton(edit_window, text="Administrador", variable=role_var, value="admin").grid(row=5, column=2, sticky="w", padx=5, pady=2)
+        tk.Radiobutton(edit_window, text="Vendedor", variable=role_var, value="vendedor").grid(row=5, column=2, padx=5, pady=2)
+
+        def save_changes():
+            new_username = username_entry.get()
+            new_password = password_entry.get()
+            new_role = role_var.get()
+
+            if new_username and new_password:
+                conn = connect()
+                cursor = conn.cursor()
+                cursor.execute('UPDATE users SET username = ?, password = ?, role = ? WHERE username = ?', 
+                            (new_username, new_password, new_role, user[0]))
+                conn.commit()
+                conn.close()
+                messagebox.showinfo("Éxito", f"Usuario {new_username} actualizado exitosamente")
+                edit_window.destroy()
+                self.load_users()  # Reload the user table
+            else:
+                messagebox.showerror("Error", "Por favor, complete todos los campos")
+
+        tk.Button(edit_window, text="Guardar Cambios", command=save_changes).grid(row=3, column=0, columnspan=2, pady=10)
+
+    def delete_user(self):
+        selected_item = self.user_tree.selection()
+        if not selected_item:
+            messagebox.showerror("Error", "Por favor, seleccione un usuario para eliminar")
+            return
+
+        user = self.user_tree.item(selected_item)['values']
+        confirm = messagebox.askyesno("Confirmar", f"¿Está seguro de que desea eliminar el usuario '{user[0]}'?")
+        if confirm:
+            conn = connect()
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM users WHERE username = ?', (user[0],))
+            conn.commit()
+            conn.close()
+            messagebox.showinfo("Éxito", f"Usuario '{user[0]}' eliminado exitosamente")
+            self.load_users()  # Reload the user table
     def add_user(self):
         username = self.username_entry.get()
         password = self.password_entry.get()
@@ -60,9 +168,14 @@ class AdminPanel:
             cursor = conn.cursor()
             try:
                 cursor.execute('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', 
-                               (username, password, role))
+                            (username, password, role))
                 conn.commit()
                 messagebox.showinfo("Éxito", f"Usuario {username} agregado como {role}")
+                self.load_users()  # Actualizar la tabla de usuarios
+                # Limpiar los campos de entrada
+                self.username_entry.delete(0, tk.END)
+                self.password_entry.delete(0, tk.END)
+                self.role_var.set("vendedor")  # Restablecer el rol por defecto
             except sqlite3.IntegrityError:
                 messagebox.showerror("Error", "El nombre de usuario ya existe")
             finally:
