@@ -31,15 +31,30 @@ def login():
     window = tk.Tk()
     window.title("Login - Punto de Venta")
 
-    tk.Label(window, text="Usuario").grid(row=0, column=0)
-    entry_user = tk.Entry(window)
-    entry_user.grid(row=0, column=1)
+    # Establecer el tamaño de la ventana
+    window.geometry("1000x500")
 
-    tk.Label(window, text="Contraseña").grid(row=1, column=0)
-    entry_pass = tk.Entry(window, show="*")
-    entry_pass.grid(row=1, column=1)
+    # Centrar la ventana en la pantalla
+    window.update_idletasks()
+    width = window.winfo_width()
+    height = window.winfo_height()
+    x = (window.winfo_screenwidth() // 2) - (width // 2)
+    y = (window.winfo_screenheight() // 2) - (height // 2)
+    window.geometry('{}x{}+{}+{}'.format(width, height, x, y))
 
-    login_btn = tk.Button(window, text="Iniciar sesión", command=verify_login)
-    login_btn.grid(row=2, column=0, columnspan=2)
+    # Crear un frame para centrar los widgets de login
+    frame = tk.Frame(window)
+    frame.place(relx=0.5, rely=0.5, anchor='center')
+
+    tk.Label(frame, text="Usuario").grid(row=0, column=0, pady=5)
+    entry_user = tk.Entry(frame)
+    entry_user.grid(row=0, column=1, pady=5)
+
+    tk.Label(frame, text="Contraseña").grid(row=1, column=0, pady=5)
+    entry_pass = tk.Entry(frame, show="*")
+    entry_pass.grid(row=1, column=1, pady=5)
+
+    login_btn = tk.Button(frame, text="Iniciar sesión", command=verify_login)
+    login_btn.grid(row=2, column=0, columnspan=2, pady=10)
 
     window.mainloop()
