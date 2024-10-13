@@ -1,7 +1,10 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
-from models.database import connect
+from tkinter import ttk, messagebox, filedialog
 import sqlite3
+from datetime import datetime, timedelta
+import pandas as pd
+from models.database import connect
+
 
 class AdminPanel:
     def __init__(self, master):
@@ -400,22 +403,117 @@ class AdminPanel:
             messagebox.showinfo("Éxito", f"Producto '{product[1]}' eliminado exitosamente")
             self.load_products_to_tree()  # Recargar la tabla
 
+
+# Reportes-----------------------------------
     def show_reports(self):
         self.clear_frame()
-        tk.Label(self.main_frame, text="Generar Reportes", font=("Arial", 16)).pack(pady=10)
-        
-        # Aquí puedes agregar opciones para diferentes tipos de reportes
-        tk.Button(self.main_frame, text="Reporte de Ventas", command=self.generate_sales_report).pack(pady=5)
-        tk.Button(self.main_frame, text="Reporte de Inventario", command=self.generate_inventory_report).pack(pady=5)
+        tk.Label(self.main_frame, text="Reporte de Ventas", font=("Arial", 16)).pack(pady=10)
 
-    def generate_sales_report(self):
-        # Implementa la lógica para generar el reporte de ventas
-        messagebox.showinfo("Reporte", "Generando reporte de ventas...")
+        # Filtro de fecha usando texto
+        filter_frame = tk.Frame(self.main_frame)
+        filter_frame.pack(pady=10)
 
-    def generate_inventory_report(self):
-        # Implementa la lógica para generar el reporte de inventario
-        messagebox.showinfo("Reporte", "Generando reporte de inventario...")
+        tk.Label(filter_frame, text="Desde (AAAA-MM-DD): ").pack(side=tk.LEFT)
+        self.start_date = tk.Entry(filter_frame)
+        self.start_date.pack(side=tk.LEFT, padx=5)
 
+        tk.Label(filter_frame, text="Hasta (AAAA-MM-DD): ").pack(side=tk.LEFT)
+        self.end_date = tk.Entry(filter_frame)
+        self.end_date.pack(side=tk.LEFT, padx=5)
+
+        tk.Button(filter_frame, text="Filtrar", command=self.load_sales).pack(side=tk.LEFT, padx=5)
+
+        # Tabla de ventas
+        self.sales_tree = ttk.Treeview(self.main_frame, columns=("ID", "Fecha", "Total"), show="headings")
+        self.sales_tree.heading("ID", text="ID")
+        self.sales_tree.heading("Fecha", text="Fecha")
+        self.sales_tree.heading("Total", text="Total")
+        self.sales_tree.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        # Scrollbar para la tabla
+        scrollbar = ttk.Scrollbar(self.main_frame, orient=tk.VERTICAL, command=self.sales_tree.yview)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.sales_tree.configure(yscrollcommand=scrollbar.set)
+
+        # Botón para descargar en Excel
+        export_button = tk.Button(self.main_frame, text="Descargar Excel", command=self.export_to_excel)
+        export_button.pack(pady=10)
+
+        # Cargar ventas en la tabla
+        self.load_sales()
+
+    def load_sales(self):
+        # Limpiar elementos existentes
+        for i in self.sales_tree.get_children():
+            self.sales_tree.delete(i)
+
+        # Conectar a la base de datos
+        conn = connect()
+        cursor = conn.cursor()
+
+        # Obtener ventas según filtro de fechas
+        query = 'SELECT id, date, total FROM sales WHERE date BETWEEN ? AND ?'
+
+        # Verificar que las fechas sean correctas
+        start_date = self.start_date.get()
+        end_date = self.end_date.get()
+
+        try:
+            # Validar que las fechas ingresadas están en el formato correcto (AAAA-MM-DD)
+            pd.to_datetime(start_date, format='%Y-%m-%d')
+            pd.to_datetime(end_date, format='%Y-%m-%d')
+
+            # Realizar la consulta con el rango de fechas
+            cursor.execute(query, (start_date, end_date))
+            sales = cursor.fetchall()
+        except ValueError:
+            # Si las fechas no son válidas, mostrar mensaje de error
+            messagebox.showerror("Error", "Por favor ingresa las fechas en formato AAAA-MM-DD")
+            sales = []
+
+        conn.close()
+
+        # Insertar ventas en la tabla
+        for sale in sales:
+            self.sales_tree.insert("", "end", values=sale)
+
+    def update_sales(self):
+        # Actualiza la tabla cada vez que se realice una compra
+        self.load_sales()
+
+    def export_to_excel(self):
+        # Obtener los datos de la tabla
+        sales_data = [self.sales_tree.item(item)['values'] for item in self.sales_tree.get_children()]
+
+        # Convertir los datos a un DataFrame de pandas
+        df = pd.DataFrame(sales_data, columns=["ID", "Fecha", "Total"])
+
+        # Preguntar por la ubicación donde guardar el archivo
+        file_path = filedialog.asksaveasfilename(defaultextension=".xlsx", filetypes=[("Excel files", "*.xlsx")])
+
+        if file_path:
+            # Guardar el DataFrame en un archivo Excel
+            df.to_excel(file_path, index=False)
+            print(f"Archivo guardado en {file_path}")
+
+    def load_sales(self):
+        # Clear existing items
+        for i in self.sales_tree.get_children():
+            self.sales_tree.delete(i)
+
+        # Fetch sales from the database
+        conn = connect()
+        cursor = conn.cursor()
+        cursor.execute('SELECT id, date, total FROM sales')
+        sales = cursor.fetchall()
+        conn.close()
+
+        # Insert sales into the table
+        for sale in sales:
+            self.sales_tree.insert("", "end", values=sale)
+
+
+# ---------------------------------------------
     
     def show_sales(self):
         self.clear_frame()
@@ -430,7 +528,7 @@ class AdminPanel:
         tk.Button(filter_frame, text="Filtrar", command=self.filter_products_for_sale).pack(side=tk.LEFT)
     
         # Tabla de productos
-        self.product_tree = ttk.Treeview(self.main_frame, columns=("name", "price"), show="headings")
+        self.product_tree = ttk.Treeview(self.main_frame, columns=("name", "price"), show="headings", height=5)
         self.product_tree.heading("name", text="Nombre")
         self.product_tree.heading("price", text="Precio")
         self.product_tree.pack(pady=10)
