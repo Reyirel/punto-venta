@@ -421,6 +421,11 @@ class AdminPanel:
         self.end_date = tk.Entry(filter_frame)
         self.end_date.pack(side=tk.LEFT, padx=5)
 
+        # Obtener la fecha actual
+        current_date = datetime.now().strftime('%Y-%m-%d')
+        self.start_date.insert(0, current_date)
+        self.end_date.insert(0, current_date)
+
         tk.Button(filter_frame, text="Filtrar", command=self.load_sales).pack(side=tk.LEFT, padx=5)
 
         # Tabla de ventas
@@ -451,8 +456,8 @@ class AdminPanel:
         conn = connect()
         cursor = conn.cursor()
 
-        # Obtener ventas según filtro de fechas
-        query = 'SELECT id, date, total FROM sales WHERE date BETWEEN ? AND ?'
+        # Obtener ventas según filtro de fechas, solo comparando la parte de fecha (sin tiempo)
+        query = 'SELECT id, DATE(date), total FROM sales WHERE DATE(date) BETWEEN ? AND ?'
 
         # Verificar que las fechas sean correctas
         start_date = self.start_date.get()
@@ -495,23 +500,6 @@ class AdminPanel:
             # Guardar el DataFrame en un archivo Excel
             df.to_excel(file_path, index=False)
             print(f"Archivo guardado en {file_path}")
-
-    def load_sales(self):
-        # Clear existing items
-        for i in self.sales_tree.get_children():
-            self.sales_tree.delete(i)
-
-        # Fetch sales from the database
-        conn = connect()
-        cursor = conn.cursor()
-        cursor.execute('SELECT id, date, total FROM sales')
-        sales = cursor.fetchall()
-        conn.close()
-
-        # Insert sales into the table
-        for sale in sales:
-            self.sales_tree.insert("", "end", values=sale)
-
 
 # ---------------------------------------------
     
