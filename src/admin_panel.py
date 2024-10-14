@@ -530,11 +530,12 @@ class AdminPanel:
         tk.Label(filter_frame, text="Filtrar:").pack(side=tk.LEFT)
         self.product_filter_entry = tk.Entry(filter_frame)
         self.product_filter_entry.pack(side=tk.LEFT, padx=5)
-        tk.Button(filter_frame, text="Filtrar", command=self.filter_products_for_sale).pack(side=tk.LEFT)
+        self.product_filter_entry.bind("<KeyRelease>", self.filter_products_for_sale)
     
         # Tabla de productos
-        self.product_tree = ttk.Treeview(self.main_frame, columns=("name", "price"), show="headings", height=5)
+        self.product_tree = ttk.Treeview(self.main_frame, columns=("name", "barcode", "price"), show="headings", height=5)
         self.product_tree.heading("name", text="Nombre")
+        self.product_tree.heading("barcode", text="Código de Barras")
         self.product_tree.heading("price", text="Precio")
         self.product_tree.pack(pady=10)
         self.load_products()
@@ -561,7 +562,7 @@ class AdminPanel:
         # Botón para finalizar la venta
         tk.Button(self.main_frame, text="Finalizar Venta", command=self.finish_sale).pack(pady=5)
     
-    def filter_products_for_sale(self):
+    def filter_products_for_sale(self, event=None):
         filter_text = self.product_filter_entry.get()
         self.load_products(filter_text)
     
@@ -571,94 +572,80 @@ class AdminPanel:
         conn = connect()
         cursor = conn.cursor()
         if filter_text:
-            cursor.execute('SELECT name, price FROM products WHERE name LIKE ? OR barcode LIKE ?', ('%' + filter_text + '%', '%' + filter_text + '%'))
+            cursor.execute("SELECT name, barcode, price FROM products WHERE name LIKE ? OR barcode LIKE ?", ('%' + filter_text + '%', '%' + filter_text + '%'))
         else:
-            cursor.execute('SELECT name, price FROM products')
+            cursor.execute("SELECT name, barcode, price FROM products")
         for product in cursor.fetchall():
-            self.product_tree.insert("", tk.END, values=(product[0], f"${product[1]:.2f}"))
+            self.product_tree.insert("", "end", values=product)
         conn.close()
 
     def add_to_sale(self):
         selected = self.product_tree.selection()
         if selected:
-            product = self.product_tree.item(selected[0], "values")
+            product = self.product_tree.item(selected)['values']
             quantity = self.quantity_entry.get()
             if quantity.isdigit() and int(quantity) > 0:
-                self.sale_tree.insert("", tk.END, values=(product[0], product[1], quantity))
+                self.sale_tree.insert("", "end", values=(product[0], product[2], quantity))
             else:
-                messagebox.showerror("Error", "Por favor, ingrese una cantidad válida")
+                messagebox.showerror("Error", "Por favor, ingrese una cantidad válida.")
         else:
-            messagebox.showerror("Error", "Por favor, seleccione un producto")
+            messagebox.showerror("Error", "Por favor, seleccione un producto.")
 
     def modify_sale_item(self):
         selected = self.sale_tree.selection()
         if selected:
-            item = self.sale_tree.item(selected[0], "values")
-            product_name, price, quantity = item
-
+            item = self.sale_tree.item(selected)['values']
             modify_window = tk.Toplevel(self.master)
-            modify_window.title(f"Modificar Producto: {product_name}")
-
+            modify_window.title(f"Modificar Producto: {item[0]}")
+            
             tk.Label(modify_window, text="Cantidad:").grid(row=0, column=0, padx=5, pady=5)
             quantity_entry = tk.Entry(modify_window)
-            quantity_entry.insert(0, quantity)
+            quantity_entry.insert(0, item[2])
             quantity_entry.grid(row=0, column=1, padx=5, pady=5)
 
             def save_changes():
                 new_quantity = quantity_entry.get()
                 if new_quantity.isdigit() and int(new_quantity) > 0:
-                    self.sale_tree.item(selected[0], values=(product_name, price, new_quantity))
+                    self.sale_tree.item(selected, values=(item[0], item[1], new_quantity))
                     modify_window.destroy()
                 else:
-                    messagebox.showerror("Error", "Por favor, ingrese una cantidad válida")
+                    messagebox.showerror("Error", "Por favor, ingrese una cantidad válida.")
 
             tk.Button(modify_window, text="Guardar Cambios", command=save_changes).grid(row=1, column=0, columnspan=2, pady=10)
+        else:
+            messagebox.showerror("Error", "Por favor, seleccione un producto.")
 
     def delete_sale_item(self):
         selected = self.sale_tree.selection()
         if selected:
-            self.sale_tree.delete(selected[0])
+            self.sale_tree.delete(selected)
         else:
-            messagebox.showerror("Error", "Por favor, seleccione un producto para eliminar")
+            messagebox.showerror("Error", "Por favor, seleccione un producto.")
 
     def finish_sale(self):
         if self.sale_tree.get_children():
             conn = connect()
             cursor = conn.cursor()
             total = 0
-            sale_items = []
-
             for item in self.sale_tree.get_children():
-                product_name, price, quantity = self.sale_tree.item(item, "values")
-                price = float(price.strip("$"))
-                quantity = int(quantity)
-                total += price * quantity
-                sale_items.append((product_name, price, quantity))
-
-            cursor.execute('INSERT INTO sales (date, total) VALUES (datetime("now"), ?)', (total,))
+                product = self.sale_tree.item(item)['values']
+                total += float(product[1]) * int(product[2])
+            cursor.execute("INSERT INTO sales (date, total) VALUES (?, ?)", (datetime.now(), total))
             sale_id = cursor.lastrowid
-
-            for product_name, price, quantity in sale_items:
-                cursor.execute('SELECT id, stock FROM products WHERE name = ?', (product_name,))
-                product = cursor.fetchone()
-                if product:
-                    product_id, stock = product
-                    new_stock = stock - quantity
-                    cursor.execute('UPDATE products SET stock = ? WHERE id = ?', (new_stock, product_id))
-                    cursor.execute('INSERT INTO sale_details (sale_id, product_id, quantity, price) VALUES (?, ?, ?, ?)', 
-                                (sale_id, product_id, quantity, price))
-
+            for item in self.sale_tree.get_children():
+                product = self.sale_tree.item(item)['values']
+                cursor.execute("INSERT INTO sale_items (sale_id, product_name, price, quantity) VALUES (?, ?, ?, ?)", (sale_id, product[0], product[1], product[2]))
             conn.commit()
             conn.close()
-            messagebox.showinfo("Venta", "Venta realizada con éxito")
-            for item in self.sale_tree.get_children():
-                self.sale_tree.delete(item)
+            messagebox.showinfo("Éxito", "Venta realizada con éxito.")
+            self.sale_tree.delete(*self.sale_tree.get_children())
         else:
-            messagebox.showerror("Error", "No hay productos en la venta actual")
+            messagebox.showerror("Error", "No hay productos en la venta.")
+
 def show(username):
     root = tk.Tk()
-    AdminPanel(root,username)
+    AdminPanel(root, username)
     root.mainloop()
 
 if __name__ == "__main__":
-    show()
+    show("admin")
