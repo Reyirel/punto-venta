@@ -19,10 +19,10 @@ def login():
             window.destroy()
             if role == 'admin':
                 import admin_panel
-                admin_panel.show()
+                admin_panel.show(username)
             elif role == 'vendedor':
                 import vendedor_panel
-                vendedor_panel.show()
+                vendedor_panel.show(username)
         else:
             messagebox.showerror("Error", "Usuario o contraseña incorrectos")
         

@@ -7,7 +7,7 @@ from models.database import connect
 
 
 class AdminPanel:
-    def __init__(self, master):
+    def __init__(self, master, username):
         self.master = master
         self.master.title("Panel de Administración")
         self.master.geometry("800x600")
@@ -15,6 +15,9 @@ class AdminPanel:
         # Crear el menú superior
         self.menu = tk.Menu(self.master)
         self.master.config(menu=self.menu)
+
+        # Mostrar el nombre de usuario en la barra de navegación
+        self.menu.add_command(label=f"Usuario: {username}")
 
         # Agregar opciones al menú
         self.menu.add_command(label="Agregar Usuarios", command=self.show_add_user)
@@ -652,9 +655,9 @@ class AdminPanel:
                 self.sale_tree.delete(item)
         else:
             messagebox.showerror("Error", "No hay productos en la venta actual")
-def show():
+def show(username):
     root = tk.Tk()
-    AdminPanel(root)
+    AdminPanel(root,username)
     root.mainloop()
 
 if __name__ == "__main__":

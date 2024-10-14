@@ -4,10 +4,13 @@ from models.database import connect
 import sqlite3
 
 class VendedorPanel:
-    def __init__(self, master):
+    def __init__(self, master, username):
         self.master = master
         self.master.title("Panel de Vendedor")
         self.master.geometry("800x600")
+
+        # Mostrar el nombre de usuario en la parte superior
+        tk.Label(self.master, text=f"Usuario: {username}", font=("Arial", 12)).pack(pady=5)
 
         self.main_frame = tk.Frame(self.master)
         self.main_frame.pack(fill=tk.BOTH, expand=True)
@@ -153,10 +156,10 @@ class VendedorPanel:
         else:
             messagebox.showerror("Error", "No hay productos en la venta actual")
 
-def show():
+def show(username):
     root = tk.Tk()
-    VendedorPanel(root)
+    VendedorPanel(root, username)
     root.mainloop()
 
 if __name__ == "__main__":
-    show()
+    show("vendedor")  # Para pruebas, puedes cambiar "vendedor" por cualquier nombre de usuario
