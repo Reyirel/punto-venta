@@ -12,6 +12,8 @@ class AdminPanel:
         self.master = master
         self.master.title("Panel de Administración")
         self.master.state('zoomed')
+        self.master.resizable(0, 0)
+
 
         # Paleta de colores moderna
         self.colors = {
@@ -677,27 +679,42 @@ class AdminPanel:
         conn = connect()
         cursor = conn.cursor()
 
-        # Obtener ventas según filtro de fechas, solo comparando la parte de fecha (sin tiempo)
-        query = 'SELECT id, DATE(date), total FROM sales WHERE DATE(date) BETWEEN ? AND ?'
-
-        # Verificar que las fechas sean correctas
-        start_date = self.start_date.get()
-        end_date = self.end_date.get()
-
+        # Obtener ventas según filtro de fechas
         try:
-            # Validar que las fechas ingresadas están en el formato correcto (AAAA-MM-DD)
-            pd.to_datetime(start_date, format='%Y-%m-%d')
-            pd.to_datetime(end_date, format='%Y-%m-%d')
-
-            # Realizar la consulta con el rango de fechas
+            start_date = f"{self.start_date.get()} 00:00:00"  # Agregar tiempo inicial del día
+            end_date = f"{self.end_date.get()} 23:59:59"      # Agregar tiempo final del día
+            
+            # Validar que las fechas ingresadas están en el formato correcto
+            pd.to_datetime(start_date)
+            pd.to_datetime(end_date)
+            
+            # Consulta modificada para incluir el rango completo del día
+            query = '''
+                SELECT id, datetime(date) as fecha, total 
+                FROM sales 
+                WHERE datetime(date) BETWEEN datetime(?) AND datetime(?)
+            '''
+            
             cursor.execute(query, (start_date, end_date))
             sales = cursor.fetchall()
-        except ValueError:
-            # Si las fechas no son válidas, mostrar mensaje de error
-            messagebox.showerror("Error", "Por favor ingresa las fechas en formato AAAA-MM-DD")
-            sales = []
+            
+            # Insertar ventas en la tabla y calcular el total
+            total_sales = 0
+            for sale in sales:
+                # Formatear la fecha para mostrar solo fecha y hora
+                sale_id, fecha, total = sale
+                fecha_formateada = fecha.split('.')[0]  # Eliminar microsegundos si existen
+                
+                self.sales_tree.insert("", "end", values=(sale_id, fecha_formateada, f"{total:.2f}"))
+                total_sales += total
 
-        conn.close()
+            # Actualizar el label con el total de ventas
+            self.total_label.config(text=f"Total de Ventas: ${total_sales:.2f}")
+            
+        except ValueError as e:
+            messagebox.showerror("Error", "Por favor ingresa las fechas en formato AAAA-MM-DD")
+        finally:
+            conn.close()
 
         # Insertar ventas en la tabla y calcular el total
         total_sales = 0
