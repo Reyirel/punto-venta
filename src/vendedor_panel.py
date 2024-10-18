@@ -1,7 +1,6 @@
 import tkinter as tk
-from tkinter import ttk, messagebox, filedialog
+from tkinter import ttk, messagebox
 from models.database import connect
-import sqlite3
 from datetime import datetime
 import pandas as pd
 
@@ -9,7 +8,7 @@ class VendedorPanel:
     def __init__(self, master, username):
         self.master = master
         self.master.title("Panel de Vendedor")
-        self.master.state('zoomed')  # Iniciar en pantalla completa
+        self.master.state('zoomed')
         self.master.resizable(0, 0)
 
         # Paleta de colores moderna
@@ -18,7 +17,8 @@ class VendedorPanel:
             'secondary': "#636E72",
             'accent': "#00B894",
             'text': "#FFFFFF",
-            'text_disabled': "#B2BEC3"
+            'text_disabled': "#B2BEC3",
+            'danger': "#e74c3c"
         }
 
         # Frame principal con diseño moderno
@@ -41,23 +41,69 @@ class VendedorPanel:
 
         # Opciones del menú
         menu_options = [
-            ("📋 Ver Productos", self.show_view_products),
-            ("💰 Realizar Ventas", self.show_sales),
+            ("📦 Productos", self.show_view_products),
+            ("📈 Reportes", self.show_reports),
+            ("💰 Ventas", self.show_sales)
         ]
-        
+
         # Frame para los botones del menú
         buttons_frame = tk.Frame(self.menu_frame, bg=self.colors['primary'])
         buttons_frame.pack(fill=tk.X, pady=10)
 
         self.buttons = []
         self.current_section = None
-
         for text, command in menu_options:
-            button = tk.Button(buttons_frame, text=text, font=("Helvetica", 12), bg=self.colors['primary'], fg=self.colors['text'], bd=0, anchor="w", command=lambda cmd=command, txt=text: self.change_section(cmd, txt))
-            button.pack(fill=tk.X, padx=15, pady=5)
-            button.bind("<Enter>", lambda e, btn=button: self.on_enter(e, btn))
-            button.bind("<Leave>", lambda e, btn=button: self.on_leave(e, btn))
+            # Frame contenedor para cada botón
+            btn_container = tk.Frame(buttons_frame, bg=self.colors['primary'])
+            btn_container.pack(fill=tk.X, pady=2)
+
+            button = tk.Button(
+                btn_container,
+                text=text,
+                command=lambda cmd=command, btn_text=text: self.change_section(cmd, btn_text),
+                bg=self.colors['primary'],
+                fg=self.colors['text'],
+                font=("Helvetica", 11),
+                bd=0,
+                relief=tk.FLAT,
+                activebackground=self.colors['secondary'],
+                activeforeground=self.colors['text'],
+                anchor="w",
+                padx=25,
+                pady=12,
+                width=25
+            )
+            button.pack(fill=tk.X)
+
+            # Eventos para efectos hover
+            button.bind("<Enter>", lambda e, b=button: self.on_enter(e, b))
+            button.bind("<Leave>", lambda e, b=button: self.on_leave(e, b))
             self.buttons.append(button)
+
+        # Agregar separador antes del botón de cerrar sesión
+        ttk.Separator(self.menu_frame).pack(fill=tk.X, padx=15, pady=10)
+
+        # Botón de cerrar sesión al final del menú
+        logout_container = tk.Frame(self.menu_frame, bg=self.colors['primary'])
+        logout_container.pack(fill=tk.X, pady=2, side=tk.BOTTOM, padx=15)
+        
+        self.logout_button = tk.Button(
+            logout_container,
+            text="🚪 Cerrar Sesión",
+            command=self.logout,
+            bg=self.colors['danger'],
+            fg=self.colors['text'],
+            font=("Helvetica", 11, "bold"),
+            bd=0,
+            relief=tk.FLAT,
+            activebackground="#c0392b",  # Un rojo más oscuro para el hover
+            activeforeground=self.colors['text'],
+            anchor="center",
+            padx=25,
+            pady=12,
+            cursor="hand2"
+        )
+        self.logout_button.pack(fill=tk.X)
 
         # Frame principal para el contenido
         self.main_frame = tk.Frame(self.master, bg="#F0F0F0")
@@ -66,20 +112,33 @@ class VendedorPanel:
         # Inicialmente mostramos la primera opción
         self.show_view_products()
 
+    def logout(self):
+        if messagebox.askyesno("Cerrar Sesión", "¿Está seguro que desea cerrar sesión?"):
+            self.master.destroy()
+
     def on_enter(self, e, button):
         if button.cget('text') != self.current_section:
-            button.configure(bg=self.colors['secondary'])
+            button.config(
+                bg=self.colors['secondary'],
+                cursor="hand2"
+            )
 
     def on_leave(self, e, button):
         if button.cget('text') != self.current_section:
-            button.configure(bg=self.colors['primary'])
+            button.config(
+                bg=self.colors['primary'],
+                cursor=""
+            )
 
     def change_section(self, command, button_text):
         # Resetear el botón previamente seleccionado
         if self.current_section:
             for btn in self.buttons:
                 if btn.cget('text') == self.current_section:
-                    btn.configure(bg=self.colors['primary'])
+                    btn.config(
+                        bg=self.colors['primary'],
+                        fg=self.colors['text']
+                    )
                     break
 
         # Actualizar la sección actual
@@ -88,7 +147,10 @@ class VendedorPanel:
         # Resaltar el botón seleccionado
         for btn in self.buttons:
             if btn.cget('text') == button_text:
-                btn.configure(bg=self.colors['secondary'])
+                btn.config(
+                    bg=self.colors['accent'],
+                    fg=self.colors['text']
+                )
                 break
 
         # Ejecutar el comando
@@ -605,6 +667,379 @@ class VendedorPanel:
         messagebox.showinfo("Venta", "Venta realizada con éxito")
         for item in self.sale_tree.get_children():
             self.sale_tree.delete(item)
+
+# reportes de ventas ----------------------------------
+    def show_reports(self):
+        self.clear_frame()
+        self.main_frame.configure(bg="#f0f0f0")  # Fondo del frame principal
+
+        tk.Label(self.main_frame, text="Reporte de Ventas", font=("Arial", 16, "bold"), bg="#f0f0f0").pack(pady=10)
+
+        # Filtro de fecha usando LabelFrame
+        filter_frame = tk.LabelFrame(self.main_frame, text="Filtro de Fecha", bg="#f0f0f0", font=("Arial", 12, "bold"))
+        filter_frame.pack(pady=10, padx=10, fill="x")
+
+        tk.Label(filter_frame, text="Desde (AAAA-MM-DD): ", bg="#f0f0f0").pack(side=tk.LEFT, padx=5, pady=5)
+        self.start_date = tk.Entry(filter_frame)
+        self.start_date.pack(side=tk.LEFT, padx=5, pady=5)
+
+        tk.Label(filter_frame, text="Hasta (AAAA-MM-DD): ", bg="#f0f0f0").pack(side=tk.LEFT, padx=5, pady=5)
+        self.end_date = tk.Entry(filter_frame)
+        self.end_date.pack(side=tk.LEFT, padx=5, pady=5)
+
+        # Obtener la fecha actual
+        current_date = datetime.now().strftime('%Y-%m-%d')
+        self.start_date.insert(0, current_date)
+        self.end_date.insert(0, current_date)
+
+        tk.Button(filter_frame, text="Filtrar", command=self.load_sales, bg="#00B894", fg="white", font=("Arial", 10, "bold")).pack(side=tk.LEFT, padx=5, pady=5)
+
+        # Tabla de ventas
+        self.sales_tree = ttk.Treeview(self.main_frame, columns=("ID", "Fecha", "Total"), show="headings")
+        self.sales_tree.heading("ID", text="ID")
+        self.sales_tree.heading("Fecha", text="Fecha")
+        self.sales_tree.heading("Total", text="Total")
+        self.sales_tree.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        # Scrollbar para la tabla
+        scrollbar = ttk.Scrollbar(self.main_frame, orient=tk.VERTICAL, command=self.sales_tree.yview)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.sales_tree.configure(yscrollcommand=scrollbar.set)
+
+        # Botón para descargar en Excel
+        export_button = tk.Button(self.main_frame, text="Descargar Excel", command=self.export_to_excel, bg="#2196F3", fg="white", font=("Arial", 10, "bold"))
+        export_button.pack(pady=10)
+
+        # Label para mostrar el total de las ventas
+        self.total_label = tk.Label(self.main_frame, text="Total de Ventas: 0", font=("Arial", 14, "bold"), bg="#f0f0f0")
+        self.total_label.pack(pady=10)
+
+        # Cargar ventas en la tabla
+        self.load_sales()
+
+    def load_sales(self):
+        # Limpiar elementos existentes
+        for i in self.sales_tree.get_children():
+            self.sales_tree.delete(i)
+
+        # Conectar a la base de datos
+        conn = connect()
+        cursor = conn.cursor()
+
+        # Obtener ventas según filtro de fechas
+        try:
+            start_date = f"{self.start_date.get()} 00:00:00"  # Agregar tiempo inicial del día
+            end_date = f"{self.end_date.get()} 23:59:59"      # Agregar tiempo final del día
+            
+            # Validar que las fechas ingresadas están en el formato correcto
+            pd.to_datetime(start_date)
+            pd.to_datetime(end_date)
+            
+            # Consulta modificada para incluir el rango completo del día
+            query = '''
+                SELECT id, datetime(date) as fecha, total 
+                FROM sales 
+                WHERE datetime(date) BETWEEN datetime(?) AND datetime(?)
+            '''
+            
+            cursor.execute(query, (start_date, end_date))
+            sales = cursor.fetchall()
+            
+            # Insertar ventas en la tabla y calcular el total
+            total_sales = 0
+            for sale in sales:
+                # Formatear la fecha para mostrar solo fecha y hora
+                sale_id, fecha, total = sale
+                fecha_formateada = fecha.split('.')[0]  # Eliminar microsegundos si existen
+                
+                self.sales_tree.insert("", "end", values=(sale_id, fecha_formateada, f"{total:.2f}"))
+                total_sales += total
+
+            # Actualizar el label con el total de ventas
+            self.total_label.config(text=f"Total de Ventas: ${total_sales:.2f}")
+            
+        except ValueError as e:
+            messagebox.showerror("Error", "Por favor ingresa las fechas en formato AAAA-MM-DD")
+        finally:
+            conn.close()
+
+        # Insertar ventas en la tabla y calcular el total
+        total_sales = 0
+        for sale in sales:
+            self.sales_tree.insert("", "end", values=sale)
+            total_sales += sale[2]  # Sumar el valor del total de cada venta
+
+        # Actualizar el label con el total de ventas
+        self.total_label.config(text=f"Total de Ventas: {total_sales}")
+
+    def update_sales(self):
+        # Actualiza la tabla cada vez que se realice una compra
+        self.load_sales()
+
+    def export_to_excel(self):
+        # Obtener los datos de la tabla
+        sales_data = [self.sales_tree.item(item)['values'] for item in self.sales_tree.get_children()]
+
+        # Convertir los datos a un DataFrame de pandas
+        df = pd.DataFrame(sales_data, columns=["ID", "Fecha", "Total"])
+
+        # Generar el nombre del archivo con la fecha y hora actuales
+        current_datetime = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        default_filename = f"reporte_ventas_{current_datetime}.xlsx"
+
+        # Preguntar por la ubicación donde guardar el archivo, usando el nombre generado por defecto
+        file_path = filedialog.asksaveasfilename(defaultextension=".xlsx", initialfile=default_filename, filetypes=[("Excel files", "*.xlsx")])
+
+        if file_path:
+            # Guardar el DataFrame en un archivo Excel
+            df.to_excel(file_path, index=False)
+            print(f"Archivo guardado en {file_path}")
+
+
+# Ver productos ----------------------------------------
+    def show_add_product(self):
+        self.clear_frame()
+        self.main_frame.configure(bg="#f0f0f0")  # Fondo del frame principal
+    
+        # Título del formulario
+        tk.Label(self.main_frame, text="Agregar Producto", font=("Arial", 16, "bold"), bg="#f0f0f0").pack(pady=10)
+    
+        # Formulario de datos del producto usando LabelFrame, centrado
+        form_frame = tk.LabelFrame(self.main_frame, text="Datos del Producto", bg="#f0f0f0", font=("Arial", 12, "bold"))
+        form_frame.pack(pady=20, padx=20, fill="x", expand=True)  # Centrando con padx y pady
+    
+        # Campo de entrada para el nombre del producto (centrado y más largo)
+        tk.Label(form_frame, text="Nombre del Producto: ", bg="#f0f0f0").pack(anchor="w", padx=10, pady=5)
+        self.product_name_entry = tk.Entry(form_frame, width=500)  # Haciendo el input más largo
+        self.product_name_entry.pack(padx=10, pady=5, ipady=5)
+    
+        # Campo de entrada para el código de barras del producto (centrado y más largo)
+        tk.Label(form_frame, text="Código de Barras: ", bg="#f0f0f0").pack(anchor="w", padx=10, pady=5)
+        self.barcode_entry = tk.Entry(form_frame, width=500)
+        self.barcode_entry.pack(padx=10, pady=5, ipady=5)
+    
+        # Campo de entrada para el precio del producto (centrado y más largo)
+        tk.Label(form_frame, text="Precio: ", bg="#f0f0f0").pack(anchor="w", padx=10, pady=5)
+        self.product_price_entry = tk.Entry(form_frame, width=500)
+        self.product_price_entry.pack(padx=10, pady=5, ipady=5)
+    
+        # Campo de entrada para la cantidad del producto (centrado y más largo)
+        tk.Label(form_frame, text="Cantidad: ", bg="#f0f0f0").pack(anchor="w", padx=10, pady=5)
+        self.product_quantity_entry = tk.Entry(form_frame, width=500)
+        self.product_quantity_entry.pack(padx=10, pady=5, ipady=5)
+    
+        # Botón para agregar el producto (centrado)
+        tk.Button(form_frame, text="Agregar Producto", command=self.add_product, bg="#00B894", fg="white", font=("Arial", 10, "bold")).pack(padx=10, pady=20)
+    
+    def add_product(self):
+        # Lógica para agregar el producto a la base de datos o lista
+        name = self.product_name_entry.get()
+        barcode = self.barcode_entry.get()
+        price = self.product_price_entry.get()
+        stock = self.product_quantity_entry.get()
+    
+        # Validar que los campos no estén vacíos
+        if name and barcode and price and stock:
+            try:
+                # Validar que el precio y la cantidad sean números
+                price = float(price)
+                stock = int(stock)
+                conn = connect()
+                cursor = conn.cursor()
+                cursor.execute('INSERT INTO products (name, barcode, price, stock) VALUES (?, ?, ?, ?)', 
+                               (name, barcode, price, stock))
+                conn.commit()
+                conn.close()
+                messagebox.showinfo("Éxito", f"Producto '{name}' agregado exitosamente")
+            except ValueError:
+                messagebox.showerror("Error", "El precio y la cantidad deben ser números válidos")
+            except sqlite3.IntegrityError:
+                messagebox.showerror("Error", "El código de barras ya existe")
+        else:
+            messagebox.showerror("Error", "Por favor, complete todos los campos")
+    
+    def show_view_products(self):
+        self.clear_frame()
+
+        # Título
+        tk.Label(self.main_frame, text="Ver Productos", font=("Arial", 18, "bold")).pack(pady=20)
+
+        # Filtro de búsqueda usando LabelFrame
+        filter_frame = tk.LabelFrame(self.main_frame, text="Filtro de Búsqueda", bg="#f0f0f0", font=("Arial", 12, "bold"))
+        filter_frame.pack(fill=tk.X, padx=20, pady=10)
+
+        tk.Label(filter_frame, text="Busqueda:", font=("Arial", 12), bg="#f0f0f0").pack(side=tk.LEFT, padx=5, pady=5)
+        self.filter_entry = tk.Entry(filter_frame, font=("Arial", 12))
+        self.filter_entry.pack(side=tk.LEFT, padx=10, fill=tk.X, expand=True)
+
+        self.filter_entry.bind("<KeyRelease>", self.filter_products)
+
+        # Tabla de productos
+        table_frame = tk.Frame(self.main_frame)
+        table_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+
+        self.tree = ttk.Treeview(table_frame, columns=("ID", "Nombre", "Código de Barras", "Precio", "Stock"), 
+                                show="headings", height=10)
+        self.tree.heading("ID", text="ID")
+        self.tree.heading("Nombre", text="Nombre")
+        self.tree.heading("Código de Barras", text="Código de Barras")
+        self.tree.heading("Precio", text="Precio")
+        self.tree.heading("Stock", text="Stock")
+        self.tree.pack(fill=tk.BOTH, expand=True)
+
+        # Botones para modificar y eliminar productos
+        action_button_frame = tk.Frame(self.main_frame)
+        action_button_frame.pack(pady=10)
+
+        tk.Button(action_button_frame, text="Modificar Producto Seleccionado", font=("Arial", 12), bg="#2196F3", fg="white",
+                command=self.modify_product).pack(side=tk.LEFT, padx=10)
+
+        tk.Button(action_button_frame, text="Eliminar Producto Seleccionado", font=("Arial", 12), bg="#f44336", fg="white",
+                command=self.delete_product).pack(side=tk.LEFT, padx=10)
+
+        self.load_products_to_tree()
+
+    def load_products_to_tree(self, filter_text=""):
+        # Limpiar la tabla
+        for i in self.tree.get_children():
+            self.tree.delete(i)
+
+        # Obtener productos de la base de datos
+        conn = connect()
+        cursor = conn.cursor()
+        if filter_text:
+            cursor.execute('''
+                SELECT * FROM products 
+                WHERE id LIKE ? OR name LIKE ? OR barcode LIKE ? OR price LIKE ?
+            ''', ('%' + filter_text + '%', '%' + filter_text + '%', '%' + filter_text + '%', '%' + filter_text + '%'))
+        else:
+            cursor.execute('SELECT * FROM products')
+        
+        for product in cursor.fetchall():
+            self.tree.insert("", "end", values=product)
+        
+        conn.close()
+
+    def filter_products(self, event=None):
+        filter_text = self.filter_entry.get()
+        self.load_products_to_tree(filter_text)
+
+    def modify_product(self):
+        selected_item = self.tree.selection()
+        if not selected_item:
+            messagebox.showerror("Error", "Por favor, seleccione un producto para modificar")
+            return
+
+        product = self.tree.item(selected_item)['values']
+        
+        # Crear una nueva ventana para modificar el producto
+        modify_window = tk.Toplevel(self.master)
+        modify_window.title(f"Modificar Producto: {product[1]}")
+        
+        tk.Label(modify_window, text="Nombre:").grid(row=0, column=0, padx=5, pady=5)
+        name_entry = tk.Entry(modify_window)
+        name_entry.insert(0, product[1])
+        name_entry.grid(row=0, column=1, padx=5, pady=5)
+
+        tk.Label(modify_window, text="Código de Barras:").grid(row=1, column=0, padx=5, pady=5)
+        barcode_entry = tk.Entry(modify_window)
+        barcode_entry.insert(0, product[2])
+        barcode_entry.grid(row=1, column=1, padx=5, pady=5)
+
+        tk.Label(modify_window, text="Precio:").grid(row=2, column=0, padx=5, pady=5)
+        price_entry = tk.Entry(modify_window)
+        price_entry.insert(0, product[3])
+        price_entry.grid(row=2, column=1, padx=5, pady=5)
+
+        tk.Label(modify_window, text="Stock:").grid(row=3, column=0, padx=5, pady=5)
+        stock_entry = tk.Entry(modify_window)
+        stock_entry.insert(0, product[4])
+        stock_entry.grid(row=3, column=1, padx=5, pady=5)
+
+        def save_changes():
+            new_name = name_entry.get()
+            new_barcode = barcode_entry.get()
+            new_price = price_entry.get()
+            new_stock = stock_entry.get()
+
+            if new_name and new_barcode and new_price and new_stock:
+                try:
+                    new_price = float(new_price)
+                    new_stock = int(new_stock)
+                    
+                    conn = connect()
+                    cursor = conn.cursor()
+                    
+                    cursor.execute('''
+                        UPDATE products 
+                        SET name = ?, barcode = ?, price = ?, stock = ? 
+                        WHERE id = ?
+                    ''', (new_name, new_barcode, new_price, new_stock, product[0]))
+                    
+                    conn.commit()
+                    conn.close()
+                    messagebox.showinfo("Éxito", "Producto modificado exitosamente")
+                    modify_window.destroy()
+                    self.load_products_to_tree()
+                except ValueError:
+                    messagebox.showerror("Error", "Por favor, ingrese valores válidos")
+            else:
+                messagebox.showerror("Error", "Por favor, complete todos los campos")
+
+        def update_stock():
+            new_stock = stock_entry.get()
+            if new_stock:
+                try:
+                    new_stock = int(new_stock)
+                    
+                    conn = connect()
+                    cursor = conn.cursor()
+                    
+                    # Obtener el stock actual del producto
+                    cursor.execute('SELECT stock FROM products WHERE id = ?', (product[0],))
+                    current_stock = cursor.fetchone()[0]
+                    
+                    # Actualizar el stock según la lógica especificada
+                    if current_stock < 0:
+                        updated_stock = current_stock + new_stock
+                    else:
+                        updated_stock = current_stock + new_stock
+                    
+                    cursor.execute('''
+                        UPDATE products 
+                        SET stock = ? 
+                        WHERE id = ?
+                    ''', (updated_stock, product[0]))
+                    
+                    conn.commit()
+                    conn.close()
+                    messagebox.showinfo("Éxito", "Stock actualizado exitosamente")
+                    modify_window.destroy()
+                    self.load_products_to_tree()
+                except ValueError:
+                    messagebox.showerror("Error", "Por favor, ingrese un valor válido")
+            else:
+                messagebox.showerror("Error", "Por favor, ingrese una cantidad de stock")
+
+        tk.Button(modify_window, text="Guardar Cambios", command=save_changes).grid(row=4, column=0, columnspan=2, pady=10)
+        tk.Button(modify_window, text="Actualizar Cantidad de Stock", command=update_stock).grid(row=5, column=0, columnspan=2, pady=10)
+
+    def delete_product(self):
+        selected_item = self.tree.selection()
+        if not selected_item:
+            messagebox.showerror("Error", "Por favor, seleccione un producto para eliminar")
+            return
+
+        product = self.tree.item(selected_item)['values']
+        confirm = messagebox.askyesno("Confirmar", f"¿Está seguro de que desea eliminar el producto '{product[1]}'?")
+        if confirm:
+            conn = connect()
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM products WHERE id = ?', (product[0],))
+            conn.commit()
+            conn.close()
+            messagebox.showinfo("Éxito", f"Producto '{product[1]}' eliminado exitosamente")
+            self.load_products_to_tree()  # Recargar la tabla
 
 
 def show(username):

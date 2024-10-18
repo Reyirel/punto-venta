@@ -1,3 +1,4 @@
+from login import login
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 import sqlite3
@@ -7,13 +8,11 @@ from models.database import connect
 from PIL import Image, ImageTk, ImageDraw
 
 class AdminPanel:
-# menu-----------------------------------------------
     def __init__(self, master, username):
         self.master = master
         self.master.title("Panel de Administración")
         self.master.state('zoomed')
         self.master.resizable(0, 0)
-
 
         # Paleta de colores moderna
         self.colors = {
@@ -21,7 +20,8 @@ class AdminPanel:
             'secondary': "#636E72",     # Color secundario para hover
             'accent': "#00B894",        # Color de acento para el botón activo
             'text': "#FFFFFF",          # Color del texto
-            'text_disabled': "#B2BEC3"  # Color del texto desactivado
+            'text_disabled': "#B2BEC3",  # Color del texto desactivado
+            'danger': "#e74c3c"         # Color rojo para el botón de cerrar sesión
         }
 
         # Frame principal con diseño moderno
@@ -102,12 +102,42 @@ class AdminPanel:
             button.bind("<Leave>", lambda e, b=button: self.on_leave(e, b))
             self.buttons.append(button)
 
+        # Agregar separador antes del botón de cerrar sesión
+        ttk.Separator(self.menu_frame).pack(fill=tk.X, padx=15, pady=10)
+
+        # Botón de cerrar sesión al final del menú
+        logout_container = tk.Frame(self.menu_frame, bg=self.colors['primary'])
+        logout_container.pack(fill=tk.X, pady=2, side=tk.BOTTOM, padx=15)
+        
+        self.logout_button = tk.Button(
+            logout_container,
+            text="🚪 Cerrar Sesión",
+            command=self.logout,
+            bg=self.colors['danger'],
+            fg=self.colors['text'],
+            font=("Helvetica", 11, "bold"),
+            bd=0,
+            relief=tk.FLAT,
+            activebackground="#c0392b",  # Un rojo más oscuro para el hover
+            activeforeground=self.colors['text'],
+            anchor="center",
+            padx=25,
+            pady=12,
+            cursor="hand2"
+        )
+        self.logout_button.pack(fill=tk.X)
+
         # Frame principal para el contenido
         self.main_frame = tk.Frame(self.master, bg="#F0F0F0")
         self.main_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         # Inicialmente mostramos la primera opción
         self.show_add_user()
+
+    def logout(self):
+        if messagebox.askyesno("Cerrar Sesión", "¿Está seguro que desea cerrar sesión?"):
+            self.master.destroy()
+            login()
     
     def round_corners(self):
         # Crear una máscara con esquinas redondeadas
@@ -169,6 +199,7 @@ class AdminPanel:
     def clear_frame(self):
         for widget in self.main_frame.winfo_children():
             widget.destroy()
+
 # ----------------------------------------------------
 
 # agregar usuario---------------------------------------
