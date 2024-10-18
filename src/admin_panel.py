@@ -376,60 +376,48 @@ class AdminPanel:
     def show_add_product(self):
         self.clear_frame()
         self.main_frame.configure(bg="#f0f0f0")  # Fondo del frame principal
-
+    
         # Título del formulario
         tk.Label(self.main_frame, text="Agregar Producto", font=("Arial", 16, "bold"), bg="#f0f0f0").pack(pady=10)
-
+    
         # Formulario de datos del producto usando LabelFrame, centrado
         form_frame = tk.LabelFrame(self.main_frame, text="Datos del Producto", bg="#f0f0f0", font=("Arial", 12, "bold"))
         form_frame.pack(pady=20, padx=20, fill="x", expand=True)  # Centrando con padx y pady
-
+    
         # Campo de entrada para el nombre del producto (centrado y más largo)
         tk.Label(form_frame, text="Nombre del Producto: ", bg="#f0f0f0").pack(anchor="w", padx=10, pady=5)
-        self.product_name = tk.Entry(form_frame, width=500)  # Haciendo el input más largo
-        self.product_name.pack(padx=10, pady=5, ipady=5)
-
+        self.product_name_entry = tk.Entry(form_frame, width=500)  # Haciendo el input más largo
+        self.product_name_entry.pack(padx=10, pady=5, ipady=5)
+    
+        # Campo de entrada para el código de barras del producto (centrado y más largo)
+        tk.Label(form_frame, text="Código de Barras: ", bg="#f0f0f0").pack(anchor="w", padx=10, pady=5)
+        self.barcode_entry = tk.Entry(form_frame, width=500)
+        self.barcode_entry.pack(padx=10, pady=5, ipady=5)
+    
         # Campo de entrada para el precio del producto (centrado y más largo)
         tk.Label(form_frame, text="Precio: ", bg="#f0f0f0").pack(anchor="w", padx=10, pady=5)
-        self.product_price = tk.Entry(form_frame, width=500)
-        self.product_price.pack(padx=10, pady=5, ipady=5)
-
+        self.product_price_entry = tk.Entry(form_frame, width=500)
+        self.product_price_entry.pack(padx=10, pady=5, ipady=5)
+    
         # Campo de entrada para la cantidad del producto (centrado y más largo)
         tk.Label(form_frame, text="Cantidad: ", bg="#f0f0f0").pack(anchor="w", padx=10, pady=5)
-        self.product_quantity = tk.Entry(form_frame, width=500)
-        self.product_quantity.pack(padx=10, pady=5, ipady=5)
-
+        self.product_quantity_entry = tk.Entry(form_frame, width=500)
+        self.product_quantity_entry.pack(padx=10, pady=5, ipady=5)
+    
         # Botón para agregar el producto (centrado)
         tk.Button(form_frame, text="Agregar Producto", command=self.add_product, bg="#00B894", fg="white", font=("Arial", 10, "bold")).pack(padx=10, pady=20)
-
+    
     def add_product(self):
         # Lógica para agregar el producto a la base de datos o lista
-        product_name = self.product_name.get()
-        product_price = self.product_price.get()
-        product_quantity = self.product_quantity.get()
-
-        # Validar que los campos no estén vacíos
-        if product_name and product_price and product_quantity:
-            try:
-                # Validar que el precio y la cantidad sean números
-                product_price = float(product_price)
-                product_quantity = int(product_quantity)
-                # Aquí iría la lógica para agregar el producto a la base de datos
-                print(f"Producto agregado: {product_name}, Precio: {product_price}, Cantidad: {product_quantity}")
-                messagebox.showinfo("Éxito", f"Producto '{product_name}' agregado correctamente.")
-            except ValueError:
-                messagebox.showerror("Error", "El precio debe ser un número decimal y la cantidad un número entero.")
-        else:
-            messagebox.showerror("Error", "Todos los campos son obligatorios.")
-
-    def add_product(self):
         name = self.product_name_entry.get()
         barcode = self.barcode_entry.get()
-        price = self.price_entry.get()
-        stock = self.stock_entry.get()
-
+        price = self.product_price_entry.get()
+        stock = self.product_quantity_entry.get()
+    
+        # Validar que los campos no estén vacíos
         if name and barcode and price and stock:
             try:
+                # Validar que el precio y la cantidad sean números
                 price = float(price)
                 stock = int(stock)
                 conn = connect()
@@ -445,7 +433,7 @@ class AdminPanel:
                 messagebox.showerror("Error", "El código de barras ya existe")
         else:
             messagebox.showerror("Error", "Por favor, complete todos los campos")
-
+    
     def show_view_products(self):
         self.clear_frame()
 
