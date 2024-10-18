@@ -103,7 +103,6 @@ class AdminPanel:
             self.buttons.append(button)
 
         # Agregar separador antes del botón de cerrar sesión
-        ttk.Separator(self.menu_frame).pack(fill=tk.X, padx=15, pady=10)
 
         # Botón de cerrar sesión al final del menú
         logout_container = tk.Frame(self.menu_frame, bg=self.colors['primary'])

@@ -81,7 +81,6 @@ class VendedorPanel:
             self.buttons.append(button)
 
         # Agregar separador antes del botón de cerrar sesión
-        ttk.Separator(self.menu_frame).pack(fill=tk.X, padx=15, pady=10)
 
         # Botón de cerrar sesión al final del menú
         logout_container = tk.Frame(self.menu_frame, bg=self.colors['primary'])
@@ -194,66 +193,6 @@ class VendedorPanel:
     def filter_products(self, event=None):
         filter_text = self.filter_entry.get()
         self.load_products_to_tree(filter_text)
-
-    def load_products_to_tree(self, filter_text=""):
-        for item in self.tree.get_children():
-            self.tree.delete(item)
-        conn = connect()
-        cursor = conn.cursor()
-        if filter_text:
-            cursor.execute('SELECT id, name, barcode, price, stock FROM products WHERE name LIKE ? OR barcode LIKE ?', ('%' + filter_text + '%', '%' + filter_text + '%'))
-        else:
-            cursor.execute('SELECT id, name, barcode, price, stock FROM products')
-        for product in cursor.fetchall():
-            self.tree.insert("", tk.END, values=product)
-        conn.close()
-
-    def modify_product(self):
-        selected = self.tree.selection()
-        if selected:
-            item = self.tree.item(selected[0], "values")
-            product_id, name, barcode, price, stock = item
-
-            modify_window = tk.Toplevel(self.master)
-            modify_window.title(f"Modificar Producto: {name}")
-
-            tk.Label(modify_window, text="Nombre:").grid(row=0, column=0, padx=5, pady=5)
-            name_entry = tk.Entry(modify_window)
-            name_entry.insert(0, name)
-            name_entry.grid(row=0, column=1, padx=5, pady=5)
-
-            tk.Label(modify_window, text="Código de Barras:").grid(row=1, column=0, padx=5, pady=5)
-            barcode_entry = tk.Entry(modify_window)
-            barcode_entry.insert(0, barcode)
-            barcode_entry.grid(row=1, column=1, padx=5, pady=5)
-
-            tk.Label(modify_window, text="Precio:").grid(row=2, column=0, padx=5, pady=5)
-            price_entry = tk.Entry(modify_window)
-            price_entry.insert(0, price)
-            price_entry.grid(row=2, column=1, padx=5, pady=5)
-
-            tk.Label(modify_window, text="Stock:").grid(row=3, column=0, padx=5, pady=5)
-            stock_entry = tk.Entry(modify_window)
-            stock_entry.insert(0, stock)
-            stock_entry.grid(row=3, column=1, padx=5, pady=5)
-
-            def save_changes():
-                new_name = name_entry.get()
-                new_barcode = barcode_entry.get()
-                new_price = price_entry.get()
-                new_stock = stock_entry.get()
-                if new_name and new_barcode and new_price and new_stock:
-                    conn = connect()
-                    cursor = conn.cursor()
-                    cursor.execute('UPDATE products SET name = ?, barcode = ?, price = ?, stock = ? WHERE id = ?', (new_name, new_barcode, new_price, new_stock, product_id))
-                    conn.commit()
-                    conn.close()
-                    self.load_products_to_tree()
-                    modify_window.destroy()
-                else:
-                    messagebox.showerror("Error", "Por favor, complete todos los campos")
-
-            tk.Button(modify_window, text="Guardar Cambios", command=save_changes).grid(row=4, column=0, columnspan=2, pady=10)
 
 
 # venta de productos ----------------------------------
@@ -888,14 +827,14 @@ class VendedorPanel:
         self.tree.pack(fill=tk.BOTH, expand=True)
 
         # Botones para modificar y eliminar productos
-        action_button_frame = tk.Frame(self.main_frame)
-        action_button_frame.pack(pady=10)
+        # action_button_frame = tk.Frame(self.main_frame)
+        # action_button_frame.pack(pady=10)
 
-        tk.Button(action_button_frame, text="Modificar Producto Seleccionado", font=("Arial", 12), bg="#2196F3", fg="white",
-                command=self.modify_product).pack(side=tk.LEFT, padx=10)
+        # tk.Button(action_button_frame, text="Modificar Producto Seleccionado", font=("Arial", 12), bg="#2196F3", fg="white",
+        #         command=self.modify_product).pack(side=tk.LEFT, padx=10)
 
-        tk.Button(action_button_frame, text="Eliminar Producto Seleccionado", font=("Arial", 12), bg="#f44336", fg="white",
-                command=self.delete_product).pack(side=tk.LEFT, padx=10)
+        # tk.Button(action_button_frame, text="Eliminar Producto Seleccionado", font=("Arial", 12), bg="#f44336", fg="white",
+        #         command=self.delete_product).pack(side=tk.LEFT, padx=10)
 
         self.load_products_to_tree()
 
