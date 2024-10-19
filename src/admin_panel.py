@@ -654,129 +654,256 @@ class AdminPanel:
 # Reportes-----------------------------------
     def show_reports(self):
         self.clear_frame()
-        self.main_frame.configure(bg="#f0f0f0")  # Fondo del frame principal
+        self.main_frame.configure(bg="#f0f0f0")
 
         tk.Label(self.main_frame, text="Reporte de Ventas", font=("Arial", 16, "bold"), bg="#f0f0f0").pack(pady=10)
 
-        # Filtro de fecha usando LabelFrame
+        # Frame para filtros
         filter_frame = tk.LabelFrame(self.main_frame, text="Filtro de Fecha", bg="#f0f0f0", font=("Arial", 12, "bold"))
         filter_frame.pack(pady=10, padx=10, fill="x")
 
-        tk.Label(filter_frame, text="Desde (AAAA-MM-DD): ", bg="#f0f0f0").pack(side=tk.LEFT, padx=5, pady=5)
-        self.start_date = tk.Entry(filter_frame)
+        # Filtros de fecha
+        tk.Label(filter_frame, text="Desde:", bg="#f0f0f0").pack(side=tk.LEFT, padx=5, pady=5)
+        self.start_date = tk.Entry(filter_frame, width=12)
         self.start_date.pack(side=tk.LEFT, padx=5, pady=5)
 
-        tk.Label(filter_frame, text="Hasta (AAAA-MM-DD): ", bg="#f0f0f0").pack(side=tk.LEFT, padx=5, pady=5)
-        self.end_date = tk.Entry(filter_frame)
+        tk.Label(filter_frame, text="Hasta:", bg="#f0f0f0").pack(side=tk.LEFT, padx=5, pady=5)
+        self.end_date = tk.Entry(filter_frame, width=12)
         self.end_date.pack(side=tk.LEFT, padx=5, pady=5)
 
-        # Obtener la fecha actual
+        # Botones de filtro
+        tk.Button(filter_frame, 
+            text="Filtrar",
+            command=self.apply_filter,
+            bg="#00B894",
+            fg="white",
+            font=("Arial", 10, "bold")
+        ).pack(side=tk.LEFT, padx=5, pady=5)
+
+        tk.Button(filter_frame,
+            text="Restablecer",
+            command=self.reset_filter,
+            bg="#FF7675",
+            fg="white",
+            font=("Arial", 10, "bold")
+        ).pack(side=tk.LEFT, padx=5, pady=5)
+
+        # Establecer fecha actual por defecto
         current_date = datetime.now().strftime('%Y-%m-%d')
         self.start_date.insert(0, current_date)
         self.end_date.insert(0, current_date)
 
-        tk.Button(filter_frame, text="Filtrar", command=self.load_sales, bg="#00B894", fg="white", font=("Arial", 10, "bold")).pack(side=tk.LEFT, padx=5, pady=5)
+        # Frame para la tabla
+        table_frame = ttk.Frame(self.main_frame)
+        table_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        # Tabla de ventas
-        self.sales_tree = ttk.Treeview(self.main_frame, columns=("ID", "Fecha", "Total"), show="headings")
+        # Crear tabla
+        self.sales_tree = ttk.Treeview(table_frame,
+            columns=("ID", "Fecha", "Total", "Detalles"),
+            show="headings",
+            height=20)
+
+        # Configurar columnas
         self.sales_tree.heading("ID", text="ID")
         self.sales_tree.heading("Fecha", text="Fecha")
         self.sales_tree.heading("Total", text="Total")
-        self.sales_tree.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        self.sales_tree.heading("Detalles", text="Detalles de Venta")
 
-        # Scrollbar para la tabla
-        scrollbar = ttk.Scrollbar(self.main_frame, orient=tk.VERTICAL, command=self.sales_tree.yview)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        self.sales_tree.configure(yscrollcommand=scrollbar.set)
+        # Ajustar anchos
+        self.sales_tree.column("ID", width=50)
+        self.sales_tree.column("Fecha", width=150)
+        self.sales_tree.column("Total", width=100)
+        self.sales_tree.column("Detalles", width=300)
 
-        # Botón para descargar en Excel
-        export_button = tk.Button(self.main_frame, text="Descargar Excel", command=self.export_to_excel, bg="#2196F3", fg="white", font=("Arial", 10, "bold"))
+        # Scrollbars
+        y_scrollbar = ttk.Scrollbar(table_frame, orient=tk.VERTICAL, command=self.sales_tree.yview)
+        x_scrollbar = ttk.Scrollbar(table_frame, orient=tk.HORIZONTAL, command=self.sales_tree.xview)
+        
+        self.sales_tree.configure(yscrollcommand=y_scrollbar.set, xscrollcommand=x_scrollbar.set)
+        
+        # Posicionar elementos
+        self.sales_tree.grid(row=0, column=0, sticky="nsew")
+        y_scrollbar.grid(row=0, column=1, sticky="ns")
+        x_scrollbar.grid(row=1, column=0, sticky="ew")
+        
+        table_frame.grid_columnconfigure(0, weight=1)
+        table_frame.grid_rowconfigure(0, weight=1)
+
+        # Botón exportar
+        export_button = tk.Button(self.main_frame,
+            text="Exportar a Excel",
+            command=self.export_to_excel,
+            bg="#2196F3",
+            fg="white",
+            font=("Arial", 10, "bold"))
         export_button.pack(pady=10)
 
-        # Label para mostrar el total de las ventas
-        self.total_label = tk.Label(self.main_frame, text="Total de Ventas: 0", font=("Arial", 14, "bold"), bg="#f0f0f0")
+        # Label total
+        self.total_label = tk.Label(self.main_frame,
+            text="Total de Ventas: $0.00",
+            font=("Arial", 14, "bold"),
+            bg="#f0f0f0")
         self.total_label.pack(pady=10)
 
-        # Cargar ventas en la tabla
+        # Variable para controlar el filtro
+        self.filter_active = False
+        
+        # Iniciar actualización automática
         self.load_sales()
+        self.schedule_auto_refresh()
 
     def load_sales(self):
-        # Limpiar elementos existentes
-        for i in self.sales_tree.get_children():
-            self.sales_tree.delete(i)
+        # Limpiar tabla
+        for item in self.sales_tree.get_children():
+            self.sales_tree.delete(item)
 
-        # Conectar a la base de datos
         conn = connect()
         cursor = conn.cursor()
-
-        # Obtener ventas según filtro de fechas
+        
         try:
-            start_date = f"{self.start_date.get()} 00:00:00"  # Agregar tiempo inicial del día
-            end_date = f"{self.end_date.get()} 23:59:59"      # Agregar tiempo final del día
-            
-            # Validar que las fechas ingresadas están en el formato correcto
-            pd.to_datetime(start_date)
-            pd.to_datetime(end_date)
-            
-            # Consulta modificada para incluir el rango completo del día
-            query = '''
-                SELECT id, datetime(date) as fecha, total 
-                FROM sales 
-                WHERE datetime(date) BETWEEN datetime(?) AND datetime(?)
-            '''
-            
-            cursor.execute(query, (start_date, end_date))
+            if self.filter_active:
+                # Consulta con filtro de fechas
+                query = '''
+                    SELECT 
+                        s.id,
+                        datetime(s.date) as fecha,
+                        s.total,
+                        GROUP_CONCAT(
+                            p.name || ' x' || sd.quantity || ' ($' || sd.price || ')'
+                        ) as detalles
+                    FROM sales s
+                    LEFT JOIN sale_details sd ON s.id = sd.sale_id
+                    LEFT JOIN products p ON sd.product_id = p.id
+                    WHERE date(s.date) BETWEEN date(?) AND date(?)
+                    GROUP BY s.id
+                    ORDER BY s.date DESC
+                '''
+                start_date = f"{self.start_date.get()} 00:00:00"
+                end_date = f"{self.end_date.get()} 23:59:59"
+                cursor.execute(query, (start_date, end_date))
+            else:
+                # Consulta sin filtro
+                query = '''
+                    SELECT 
+                        s.id,
+                        datetime(s.date) as fecha,
+                        s.total,
+                        GROUP_CONCAT(
+                            p.name || ' x' || sd.quantity || ' ($' || sd.price || ')'
+                        ) as detalles
+                    FROM sales s
+                    LEFT JOIN sale_details sd ON s.id = sd.sale_id
+                    LEFT JOIN products p ON sd.product_id = p.id
+                    GROUP BY s.id
+                    ORDER BY s.date DESC
+                '''
+                cursor.execute(query)
+
             sales = cursor.fetchall()
             
-            # Insertar ventas en la tabla y calcular el total
+            # Insertar datos y calcular total
             total_sales = 0
             for sale in sales:
-                # Formatear la fecha para mostrar solo fecha y hora
-                sale_id, fecha, total = sale
-                fecha_formateada = fecha.split('.')[0]  # Eliminar microsegundos si existen
+                sale_id, fecha, total, detalles = sale
+                fecha_formateada = fecha.split('.')[0]
+                detalles = detalles if detalles else "Sin detalles"
                 
-                self.sales_tree.insert("", "end", values=(sale_id, fecha_formateada, f"{total:.2f}"))
+                self.sales_tree.insert("", "end", values=(
+                    sale_id,
+                    fecha_formateada,
+                    f"${total:.2f}",
+                    detalles
+                ))
                 total_sales += total
 
-            # Actualizar el label con el total de ventas
+            # Actualizar total
             self.total_label.config(text=f"Total de Ventas: ${total_sales:.2f}")
             
         except ValueError as e:
-            messagebox.showerror("Error", "Por favor ingresa las fechas en formato AAAA-MM-DD")
+            messagebox.showerror("Error", "Por favor ingresa fechas válidas en formato AAAA-MM-DD")
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al cargar ventas: {str(e)}")
         finally:
             conn.close()
 
-        # Insertar ventas en la tabla y calcular el total
-        total_sales = 0
-        for sale in sales:
-            self.sales_tree.insert("", "end", values=sale)
-            total_sales += sale[2]  # Sumar el valor del total de cada venta
+    def apply_filter(self):
+        """Aplica el filtro de fechas"""
+        try:
+            # Validar formato de fechas
+            start = datetime.strptime(self.start_date.get(), '%Y-%m-%d')
+            end = datetime.strptime(self.end_date.get(), '%Y-%m-%d')
+            
+            if start > end:
+                messagebox.showerror("Error", "La fecha inicial no puede ser posterior a la fecha final")
+                return
+                
+            self.filter_active = True
+            self.load_sales()
+        except ValueError:
+            messagebox.showerror("Error", "Por favor ingresa las fechas en formato AAAA-MM-DD")
 
-        # Actualizar el label con el total de ventas
-        self.total_label.config(text=f"Total de Ventas: {total_sales}")
-
-    def update_sales(self):
-        # Actualiza la tabla cada vez que se realice una compra
+    def reset_filter(self):
+        """Restablece el filtro a la fecha actual"""
+        current_date = datetime.now().strftime('%Y-%m-%d')
+        self.start_date.delete(0, tk.END)
+        self.end_date.delete(0, tk.END)
+        self.start_date.insert(0, current_date)
+        self.end_date.insert(0, current_date)
+        self.filter_active = False
         self.load_sales()
 
+    def schedule_auto_refresh(self):
+        """Programa la actualización automática cada 5 segundos"""
+        self.load_sales()
+        self.main_frame.after(5000, self.schedule_auto_refresh)
+
     def export_to_excel(self):
-        # Obtener los datos de la tabla
-        sales_data = [self.sales_tree.item(item)['values'] for item in self.sales_tree.get_children()]
+        try:
+            data = []
+            for item in self.sales_tree.get_children():
+                data.append(self.sales_tree.item(item)['values'])
 
-        # Convertir los datos a un DataFrame de pandas
-        df = pd.DataFrame(sales_data, columns=["ID", "Fecha", "Total"])
+            df = pd.DataFrame(data, columns=["ID", "Fecha", "Total", "Detalles"])
 
-        # Generar el nombre del archivo con la fecha y hora actuales
-        current_datetime = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        default_filename = f"reporte_ventas_{current_datetime}.xlsx"
+            current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
+            default_filename = f"reporte_ventas_{current_datetime}.xlsx"
 
-        # Preguntar por la ubicación donde guardar el archivo, usando el nombre generado por defecto
-        file_path = filedialog.asksaveasfilename(defaultextension=".xlsx", initialfile=default_filename, filetypes=[("Excel files", "*.xlsx")])
+            file_path = filedialog.asksaveasfilename(
+                defaultextension=".xlsx",
+                initialfile=default_filename,
+                filetypes=[("Excel files", "*.xlsx")]
+            )
 
-        if file_path:
-            # Guardar el DataFrame en un archivo Excel
-            df.to_excel(file_path, index=False)
-            print(f"Archivo guardado en {file_path}")
+            if file_path:
+                df.to_excel(file_path, index=False)
+                messagebox.showinfo("Éxito", f"Reporte exportado exitosamente a:\n{file_path}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al exportar: {str(e)}")
+            try:
+                # Obtener datos de la tabla
+                data = []
+                for item in self.sales_tree.get_children():
+                    data.append(self.sales_tree.item(item)['values'])
+
+                # Crear DataFrame
+                df = pd.DataFrame(data, columns=["ID", "Fecha", "Total", "Detalles"])
+
+                # Generar nombre de archivo
+                current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
+                default_filename = f"reporte_ventas_{current_datetime}.xlsx"
+
+                # Solicitar ubicación de guardado
+                file_path = filedialog.asksaveasfilename(
+                    defaultextension=".xlsx",
+                    initialfile=default_filename,
+                    filetypes=[("Excel files", "*.xlsx")]
+                )
+
+                if file_path:
+                    df.to_excel(file_path, index=False)
+                    messagebox.showinfo("Éxito", f"Reporte exportado exitosamente a:\n{file_path}")
+            except Exception as e:
+                messagebox.showerror("Error", f"Error al exportar: {str(e)}")
 
 # ---------------------------------------------
     
@@ -1173,7 +1300,8 @@ class AdminPanel:
         conn = connect()
         cursor = conn.cursor()
 
-        cursor.execute('INSERT INTO sales (date, total) VALUES (datetime("now"), ?)', (total,))
+        # Usando 'localtime' para guardar la hora local
+        cursor.execute('INSERT INTO sales (date, total) VALUES (datetime("now", "localtime"), ?)', (total,))
         sale_id = cursor.lastrowid
 
         for product_name, price, quantity in sale_items:
@@ -1191,7 +1319,6 @@ class AdminPanel:
         messagebox.showinfo("Venta", "Venta realizada con éxito")
         for item in self.sale_tree.get_children():
             self.sale_tree.delete(item)
-
 
 # ----------------------------------------------------
 def show(username):
