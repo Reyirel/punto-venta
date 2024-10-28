@@ -295,13 +295,12 @@ class AdminPanel:
             return
     
         user = self.user_tree.item(selected_item)['values']
-    
-        # Crear una nueva ventana para editar el usuario
+        
+        # Create a new window for editing the user
         edit_window = tk.Toplevel(self.master)
         edit_window.title(f"Editar Usuario: {user[0]}")
-        edit_window.geometry("400x400")
-        edit_window.resizable(False, False)  # Evitar redimensionar
-    
+        edit_window.geometry("400x300")
+        
         # Center the window on the screen
         edit_window.update_idletasks()
         width = edit_window.winfo_width()
@@ -310,43 +309,34 @@ class AdminPanel:
         y = (edit_window.winfo_screenheight() // 2) - (height // 2)
         edit_window.geometry(f'{width}x{height}+{x}+{y}')
     
-        # Título del formulario
-        tk.Label(edit_window, text="Editar Usuario", font=("Arial", 16, "bold")).pack(pady=10)
-    
-        # Formulario de datos del usuario usando LabelFrame, centrado
-        form_frame = tk.LabelFrame(edit_window, text="Datos del Usuario", bg="#f0f0f0", font=("Arial", 12, "bold"))
-        form_frame.pack(pady=20, padx=20, fill="x", expand=True)  # Centrando con padx y pady
-    
-        # Campo de entrada para el nombre de usuario (centrado y más largo)
-        tk.Label(form_frame, text="Nombre de usuario: ", bg="#f0f0f0").pack(anchor="w", padx=10, pady=5)
-        username_entry = tk.Entry(form_frame, width=30)  # Ajustando el ancho
+        tk.Label(edit_window, text="Nombre de usuario:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        username_entry = tk.Entry(edit_window)
         username_entry.insert(0, user[0])
-        username_entry.pack(padx=10, pady=5, ipady=5, fill="x")
+        username_entry.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
     
-        # Campo de entrada para la contraseña (centrado y más largo)
-        tk.Label(form_frame, text="Contraseña: ", bg="#f0f0f0").pack(anchor="w", padx=10, pady=5)
-        password_entry = tk.Entry(form_frame, show="*", width=30)
+        tk.Label(edit_window, text="Contraseña:").grid(row=1, column=0, padx=5, pady=5, sticky="w")
+        password_entry = tk.Entry(edit_window, show="*")
         password_entry.insert(0, user[1])
-        password_entry.pack(padx=10, pady=5, ipady=5, fill="x")
+        password_entry.grid(row=1, column=1, padx=5, pady=5, sticky="ew")
     
-        # Botón para ver/ocultar contraseña
+        # Add a Checkbutton to show/hide password
         def toggle_password():
             if password_entry.cget('show') == '*':
                 password_entry.config(show='')
             else:
                 password_entry.config(show='*')
     
-        tk.Button(form_frame, text="Ver Contraseña", command=toggle_password, bg="#2196f3", fg="white", font=("Arial", 10, "bold")).pack(pady=5)
+        show_password_var = tk.BooleanVar()
+        show_password_check = tk.Checkbutton(edit_window, text="Mostrar contraseña", variable=show_password_var, command=toggle_password)
+        show_password_check.grid(row=2, column=1, padx=5, pady=5, sticky="w")
     
-        # Campo de entrada para el rol (centrado y más largo)
-        tk.Label(form_frame, text="Rol: ", bg="#f0f0f0").pack(anchor="w", padx=10, pady=5)
+        tk.Label(edit_window, text="Rol:").grid(row=3, column=0, padx=5, pady=5, sticky="w")
         role_var = tk.StringVar(value=user[2])
-        role_frame = tk.Frame(form_frame, bg="#f0f0f0")
-        role_frame.pack(anchor="w", padx=10, pady=5)
-        tk.Radiobutton(role_frame, text="Admin", variable=role_var, value="admin", font=("Arial", 12), bg="#f0f0f0").pack(side=tk.LEFT, padx=(0, 10))
-        tk.Radiobutton(role_frame, text="Vendedor", variable=role_var, value="vendedor", font=("Arial", 12), bg="#f0f0f0").pack(side=tk.LEFT)
+        role_frame = tk.Frame(edit_window)
+        role_frame.grid(row=3, column=1, padx=5, pady=5, sticky="w")
+        tk.Radiobutton(role_frame, text="Administrador", variable=role_var, value="admin").pack(side=tk.LEFT, padx=(0, 10))
+        tk.Radiobutton(role_frame, text="Vendedor", variable=role_var, value="vendedor").pack(side=tk.LEFT)
     
-        # Botón para guardar cambios
         def save_changes():
             new_username = username_entry.get()
             new_password = password_entry.get()
@@ -365,7 +355,11 @@ class AdminPanel:
             else:
                 messagebox.showerror("Error", "Por favor, complete todos los campos")
     
-        tk.Button(edit_window, text="Guardar Cambios", command=save_changes, bg="#00B894", fg="white", font=("Arial", 10, "bold")).pack(pady=5)               
+        tk.Button(edit_window, text="Guardar Cambios", command=save_changes).grid(row=4, column=0, columnspan=2, pady=10)
+    
+        # Configure grid weights
+        edit_window.grid_columnconfigure(1, weight=1)
+
     def delete_user(self):
         selected_item = self.user_tree.selection()
         if not selected_item:
@@ -543,60 +537,39 @@ class AdminPanel:
         if not selected_item:
             messagebox.showerror("Error", "Por favor, seleccione un producto para modificar")
             return
-    
+
         product = self.tree.item(selected_item)['values']
         
         # Crear una nueva ventana para modificar el producto
         modify_window = tk.Toplevel(self.master)
         modify_window.title(f"Modificar Producto: {product[1]}")
-        modify_window.geometry("400x500")
-        modify_window.resizable(False, False)  # Evitar redimensionar
-    
-        # Center the window on the screen
-        modify_window.update_idletasks()
-        width = modify_window.winfo_width()
-        height = modify_window.winfo_height()
-        x = (modify_window.winfo_screenwidth() // 2) - (width // 2)
-        y = (modify_window.winfo_screenheight() // 2) - (height // 2)
-        modify_window.geometry(f'{width}x{height}+{x}+{y}')
-    
-        # Título del formulario
-        tk.Label(modify_window, text="Modificar Producto", font=("Arial", 16, "bold")).pack(pady=10)
-    
-        # Formulario de datos del producto usando LabelFrame, centrado
-        form_frame = tk.LabelFrame(modify_window, text="Datos del Producto", bg="#f0f0f0", font=("Arial", 12, "bold"))
-        form_frame.pack(pady=20, padx=20, fill="x", expand=True)  # Centrando con padx y pady
-    
-        # Campo de entrada para el nombre del producto (centrado y más largo)
-        tk.Label(form_frame, text="Nombre del Producto: ", bg="#f0f0f0").pack(anchor="w", padx=10, pady=5)
-        name_entry = tk.Entry(form_frame, width=500)  # Haciendo el input más largo
+        
+        tk.Label(modify_window, text="Nombre:").grid(row=0, column=0, padx=5, pady=5)
+        name_entry = tk.Entry(modify_window)
         name_entry.insert(0, product[1])
-        name_entry.pack(padx=10, pady=5, ipady=5)
-    
-        # Campo de entrada para el código de barras del producto (centrado y más largo)
-        tk.Label(form_frame, text="Código de Barras: ", bg="#f0f0f0").pack(anchor="w", padx=10, pady=5)
-        barcode_entry = tk.Entry(form_frame, width=500)
+        name_entry.grid(row=0, column=1, padx=5, pady=5)
+
+        tk.Label(modify_window, text="Código de Barras:").grid(row=1, column=0, padx=5, pady=5)
+        barcode_entry = tk.Entry(modify_window)
         barcode_entry.insert(0, product[2])
-        barcode_entry.pack(padx=10, pady=5, ipady=5)
-    
-        # Campo de entrada para el precio del producto (centrado y más largo)
-        tk.Label(form_frame, text="Precio: ", bg="#f0f0f0").pack(anchor="w", padx=10, pady=5)
-        price_entry = tk.Entry(form_frame, width=500)
+        barcode_entry.grid(row=1, column=1, padx=5, pady=5)
+
+        tk.Label(modify_window, text="Precio:").grid(row=2, column=0, padx=5, pady=5)
+        price_entry = tk.Entry(modify_window)
         price_entry.insert(0, product[3])
-        price_entry.pack(padx=10, pady=5, ipady=5)
-    
-        # Campo de entrada para la cantidad del producto (centrado y más largo)
-        tk.Label(form_frame, text="Stock: ", bg="#f0f0f0").pack(anchor="w", padx=10, pady=5)
-        stock_entry = tk.Entry(form_frame, width=500)
+        price_entry.grid(row=2, column=1, padx=5, pady=5)
+
+        tk.Label(modify_window, text="Stock:").grid(row=3, column=0, padx=5, pady=5)
+        stock_entry = tk.Entry(modify_window)
         stock_entry.insert(0, product[4])
-        stock_entry.pack(padx=10, pady=5, ipady=5)
-    
+        stock_entry.grid(row=3, column=1, padx=5, pady=5)
+
         def save_changes():
             new_name = name_entry.get()
             new_barcode = barcode_entry.get()
             new_price = price_entry.get()
             new_stock = stock_entry.get()
-    
+
             if new_name and new_barcode and new_price and new_stock:
                 try:
                     new_price = float(new_price)
@@ -620,7 +593,7 @@ class AdminPanel:
                     messagebox.showerror("Error", "Por favor, ingrese valores válidos")
             else:
                 messagebox.showerror("Error", "Por favor, complete todos los campos")
-    
+
         def update_stock():
             new_stock = stock_entry.get()
             if new_stock:
@@ -655,10 +628,10 @@ class AdminPanel:
                     messagebox.showerror("Error", "Por favor, ingrese un valor válido")
             else:
                 messagebox.showerror("Error", "Por favor, ingrese una cantidad de stock")
-    
-        tk.Button(modify_window, text="Guardar Cambios", command=save_changes, bg="#00B894", fg="white", font=("Arial", 10, "bold")).pack(pady=10)
-        tk.Button(modify_window, text="Actualizar Cantidad de Stock", command=update_stock, bg="#2196f3", fg="white", font=("Arial", 10, "bold")).pack(pady=10)
-   
+
+        tk.Button(modify_window, text="Guardar Cambios", command=save_changes).grid(row=4, column=0, columnspan=2, pady=10)
+        tk.Button(modify_window, text="Actualizar Cantidad de Stock", command=update_stock).grid(row=5, column=0, columnspan=2, pady=10)
+
     def delete_product(self):
         selected_item = self.tree.selection()
         if not selected_item:
