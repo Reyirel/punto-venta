@@ -1714,8 +1714,10 @@ class AdminPanel:
                         payment_window.destroy()
                     else:
                         messagebox.showerror("Error", "Monto insuficiente")
+                        payment_window.destroy()
                 except ValueError:
                     messagebox.showerror("Error", "Monto inválido")
+                    payment_window.destroy()
             
             elif method == "saldo":
                 if current_balance >= total:
@@ -1805,6 +1807,7 @@ class AdminPanel:
                     payment_window.destroy()
                 else:
                     messagebox.showerror("Error", "Monto insuficiente")
+                    payment_window.destroy()
             except ValueError:
                 messagebox.showerror("Error", "Monto inválido")
 
@@ -1819,7 +1822,6 @@ class AdminPanel:
             pady=10,
             cursor="hand2"
         ).pack(pady=20)
-
 
     def complete_sale(self, sale_items, total):
         conn = connect()
