@@ -28,7 +28,7 @@ def create_tables():
         )
     ''')
 
-    # Nueva tabla de ventas
+    # Tabla de ventas (ya existente)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS sales (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -37,7 +37,7 @@ def create_tables():
         )
     ''')
 
-    # Nueva tabla de detalles de venta
+    # Tabla de detalles de venta (ya existente)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS sale_details (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -47,6 +47,15 @@ def create_tables():
             price REAL,
             FOREIGN KEY (sale_id) REFERENCES sales (id),
             FOREIGN KEY (product_id) REFERENCES products (id)
+        )
+    ''')
+
+    # Nueva tabla de clientes
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS clients (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            balance REAL NOT NULL DEFAULT 0.0
         )
     ''')
 

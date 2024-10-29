@@ -61,6 +61,7 @@ class AdminPanel:
         # Opciones del menú
         menu_options = [
             ("👥 Usuarios", self.show_add_user),
+            ("👤 Clientes", self.show_add_client),
             ("📦 Productos", self.show_add_product),
             ("📋 Inventario", self.show_view_products),
             ("📈 Reportes", self.show_reports),
@@ -401,6 +402,239 @@ class AdminPanel:
                 conn.close()
         else:
             messagebox.showerror("Error", "Por favor, complete todos los campos")
+
+# ----------------------------------------------------
+# agregar cliente---------------------------------------
+    def show_add_client(self):
+        self.clear_frame()
+        self.main_frame.configure(bg="#f0f0f0")
+
+        # Título de la sección
+        title_label = tk.Label(
+            self.main_frame, 
+            text="Gestión de Clientes", 
+            font=("Arial", 24, "bold"),
+            bg="#f0f0f0",
+            fg="#000"
+        )
+        title_label.pack(pady=20)
+
+        # Frame para formulario de nuevo cliente
+        add_client_frame = tk.LabelFrame(
+            self.main_frame,
+            text="Agregar Cliente",
+            font=("Arial", 12, "bold"),
+            bg="#f0f0f0",
+            fg="#000",
+            padx=15,
+            pady=10
+        )
+        add_client_frame.pack(fill=tk.X, padx=20, pady=(0, 20))
+
+        # Campo para ingresar el nombre del cliente
+        tk.Label(
+            add_client_frame,
+            text="Nombre del Cliente:",
+            font=("Arial", 11),
+            bg="#f0f0f0",
+            fg="#000"
+        ).grid(row=0, column=0, padx=(5, 10), pady=5, sticky="w")
+
+        self.client_name_entry = tk.Entry(
+            add_client_frame,
+            font=("Arial", 11),
+            width=30,
+            bd=2,
+            relief=tk.GROOVE
+        )
+        self.client_name_entry.grid(row=0, column=1, padx=5, pady=5)
+
+        # Campo para ingresar el saldo inicial del cliente
+        tk.Label(
+            add_client_frame,
+            text="Saldo Inicial:",
+            font=("Arial", 11),
+            bg="#f0f0f0",
+            fg="#000"
+        ).grid(row=1, column=0, padx=(5, 10), pady=5, sticky="w")
+
+        self.client_balance_entry = tk.Entry(
+            add_client_frame,
+            font=("Arial", 11),
+            width=30,
+            bd=2,
+            relief=tk.GROOVE
+        )
+        self.client_balance_entry.grid(row=1, column=1, padx=5, pady=5)
+
+        # Botón para agregar cliente
+        add_client_button = tk.Button(
+            add_client_frame,
+            text="Agregar Cliente",
+            command=self.add_client,
+            font=("Arial", 11, "bold"),
+            bg="#00B894",
+            fg="white",
+            padx=15,
+            pady=8,
+            relief=tk.RAISED,
+            cursor="hand2"
+        )
+        add_client_button.grid(row=2, column=0, columnspan=2, pady=(10, 0))
+
+        # Tabla de clientes
+        client_table_frame = tk.Frame(self.main_frame, bg="#f0f0f0")
+        client_table_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=(10, 0))
+
+        self.client_tree = ttk.Treeview(
+            client_table_frame,
+            columns=("name", "balance"),
+            show="headings",
+            height=10
+        )
+        self.client_tree.heading("name", text="Nombre del Cliente")
+        self.client_tree.heading("balance", text="Saldo")
+        self.client_tree.column("name", width=200)
+        self.client_tree.column("balance", width=100)
+        self.client_tree.pack(pady=10, fill=tk.BOTH, expand=True)
+
+        # Botones para editar y eliminar cliente
+        button_frame = tk.Frame(client_table_frame, bg="#f0f0f0")
+        button_frame.pack(fill=tk.X, pady=10)
+
+        edit_button = tk.Button(
+            button_frame,
+            text="Editar Nombre",
+            command=self.edit_client_name,
+            font=("Arial", 11),
+            bg="#3498DB",
+            fg="white",
+            padx=10,
+            pady=5,
+            cursor="hand2"
+        )
+        edit_button.pack(side=tk.LEFT, padx=5)
+
+        delete_button = tk.Button(
+            button_frame,
+            text="Eliminar Cliente",
+            command=self.delete_client,
+            font=("Arial", 11),
+            bg="#E74C3C",
+            fg="white",
+            padx=10,
+            pady=5,
+            cursor="hand2"
+        )
+        delete_button.pack(side=tk.LEFT, padx=5)
+
+        # Cargar clientes al iniciar la sección
+        self.load_clients_data()
+
+    def add_client(self):
+        name = self.client_name_entry.get().strip()
+        balance = self.client_balance_entry.get().strip()
+
+        if not name:
+            messagebox.showerror("Error", "El nombre del cliente no puede estar vacío.")
+            return
+        try:
+            balance = float(balance)
+        except ValueError:
+            messagebox.showerror("Error", "Saldo inválido. Ingrese un número válido.")
+            return
+
+        conn = connect()
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO clients (name, balance) VALUES (?, ?)", (name, balance))
+        conn.commit()
+        conn.close()
+
+        messagebox.showinfo("Éxito", "Cliente agregado con éxito.")
+        self.client_name_entry.delete(0, tk.END)
+        self.client_balance_entry.delete(0, tk.END)
+        self.load_clients_data()
+
+    def load_clients_data(self):
+        for item in self.client_tree.get_children():
+            self.client_tree.delete(item)
+
+        conn = connect()
+        cursor = conn.cursor()
+        cursor.execute("SELECT name, balance FROM clients")
+        for client in cursor.fetchall():
+            self.client_tree.insert("", tk.END, values=(client[0], f"${client[1]:.2f}"))
+        conn.close()
+
+    def edit_client_name(self):
+        selected = self.client_tree.selection()
+        if not selected:
+            messagebox.showerror("Error", "Seleccione un cliente para editar.")
+            return
+
+        item = self.client_tree.item(selected[0], "values")
+        client_name = item[0]
+
+        # Ventana para editar nombre
+        edit_window = tk.Toplevel(self.master)
+        edit_window.title("Editar Nombre de Cliente")
+        edit_window.configure(bg="#f0f0f0")
+
+        tk.Label(
+            edit_window,
+            text="Nuevo Nombre:",
+            font=("Arial", 11),
+            bg="#f0f0f0",
+            fg="#000"
+        ).pack(pady=10)
+
+        name_entry = tk.Entry(edit_window, font=("Arial", 11), width=30)
+        name_entry.insert(0, client_name)
+        name_entry.pack(pady=5)
+
+        def save_name_change():
+            new_name = name_entry.get().strip()
+            if new_name:
+                conn = connect()
+                cursor = conn.cursor()
+                cursor.execute("UPDATE clients SET name = ? WHERE name = ?", (new_name, client_name))
+                conn.commit()
+                conn.close()
+                messagebox.showinfo("Éxito", "Nombre del cliente actualizado.")
+                edit_window.destroy()
+                self.load_clients_data()
+            else:
+                messagebox.showerror("Error", "El nombre no puede estar vacío.")
+
+        tk.Button(
+            edit_window,
+            text="Guardar Cambios",
+            command=save_name_change,
+            font=("Arial", 11),
+            bg="#2ECC71",
+            fg="white",
+            padx=20,
+            pady=5,
+            cursor="hand2"
+        ).pack(pady=15)
+
+    def delete_client(self):
+        selected = self.client_tree.selection()
+        if not selected:
+            messagebox.showerror("Error", "Seleccione un cliente para eliminar.")
+            return
+
+        item = self.client_tree.item(selected[0], "values")
+        client_name = item[0]
+
+        if messagebox.askyesno("Confirmación", f"¿Está seguro de que desea eliminar a {client_name}?"):
+            conn = connect()
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM clients WHERE name = ?", (client_name,))
+            conn.commit()
+            conn.close()
+            messagebox.showinfo("Éxito", "Cliente eliminado con éxito.")
+            self.load_clients_data()
 
 # ----------------------------------------------------
 
@@ -827,7 +1061,6 @@ class AdminPanel:
             conn.close()
 
     def apply_filter(self):
-        """Aplica el filtro de fechas"""
         try:
             # Validar formato de fechas
             start = datetime.strptime(self.start_date.get(), '%Y-%m-%d')
@@ -843,7 +1076,6 @@ class AdminPanel:
             messagebox.showerror("Error", "Por favor ingresa las fechas en formato AAAA-MM-DD")
 
     def reset_filter(self):
-        """Restablece el filtro a la fecha actual"""
         current_date = datetime.now().strftime('%Y-%m-%d')
         self.start_date.delete(0, tk.END)
         self.end_date.delete(0, tk.END)
@@ -853,7 +1085,6 @@ class AdminPanel:
         self.load_sales()
 
     def schedule_auto_refresh(self):
-        """Programa la actualización automática cada 5 segundos"""
         self.load_sales()
         self.main_frame.after(5000, self.schedule_auto_refresh)
 
@@ -953,6 +1184,52 @@ class AdminPanel:
         )
         self.product_filter_entry.pack(side=tk.LEFT, padx=5)
         self.product_filter_entry.bind("<KeyRelease>", self.filter_products_for_sale)
+
+            # Añadir frame para selección de cliente
+        client_frame = tk.LabelFrame(
+            self.main_frame,
+            text="Selección de Cliente (Opcional)",
+            font=("Arial", 12, "bold"),
+            bg="#f0f0f0",
+            fg="#000",
+            padx=15,
+            pady=10
+        )
+        client_frame.pack(fill=tk.X, padx=20, pady=(0, 20))
+
+        # Combobox para seleccionar cliente
+        tk.Label(
+            client_frame,
+            text="Cliente:",
+            font=("Arial", 11),
+            bg="#f0f0f0",
+            fg="#000"
+        ).pack(side=tk.LEFT, padx=(5, 10))
+        
+        self.client_combobox = ttk.Combobox(
+            client_frame,
+            font=("Arial", 11),
+            width=40,
+            state="readonly"
+        )
+        self.client_combobox.pack(side=tk.LEFT, padx=5)
+        
+        # Botón para actualizar lista de clientes
+        refresh_button = tk.Button(
+            client_frame,
+            text="↻",
+            command=self.load_clients,
+            font=("Arial", 11),
+            bg="#3498DB",
+            fg="white",
+            padx=5,
+            cursor="hand2"
+        )
+        refresh_button.pack(side=tk.LEFT, padx=5)
+
+        # Cargar clientes inicialmente
+        self.load_clients()
+
 
         # Frame para las tablas y controles
         content_frame = tk.Frame(self.main_frame, bg="#f0f0f0")
@@ -1103,6 +1380,18 @@ class AdminPanel:
 
         # Cargar productos iniciales
         self.load_products()
+    
+    def load_clients(self):
+        conn = connect()
+        cursor = conn.cursor()
+        cursor.execute("SELECT name, balance FROM clients")
+        clients = cursor.fetchall()
+        conn.close()
+        
+        # Añadir opción "Sin cliente" al inicio
+        client_list = ["Sin cliente"] + [f"{client[0]} (Saldo: ${client[1]:.2f})" for client in clients]
+        self.client_combobox['values'] = client_list
+        self.client_combobox.set("Sin cliente")
 
     def filter_products_for_sale(self, event=None):
         filter_text = self.product_filter_entry.get()
@@ -1208,93 +1497,223 @@ class AdminPanel:
             messagebox.showerror("Error", "Por favor, seleccione un producto para eliminar")
 
     def finish_sale(self):
-        if self.sale_tree.get_children():
-            total = 0
-            sale_items = []
+        if not self.sale_tree.get_children():
+            messagebox.showerror("Error", "No hay productos en la venta")
+            return
 
-            for item in self.sale_tree.get_children():
-                product_name, price, quantity = self.sale_tree.item(item, "values")
-                price = float(price.strip("$"))
-                quantity = int(quantity)
-                total += price * quantity
-                sale_items.append((product_name, price, quantity))
+        total = 0
+        sale_items = []
 
-            # Ventana de pago mejorada
-            payment_window = tk.Toplevel(self.master)
-            payment_window.title("Finalizar Venta")
-            payment_window.configure(bg="#f0f0f0")
-            
-            # Centrar la ventana
-            window_width = 400
-            window_height = 250
-            screen_width = payment_window.winfo_screenwidth()
-            screen_height = payment_window.winfo_screenheight()
-            x = (screen_width - window_width) // 2
-            y = (screen_height - window_height) // 2
-            payment_window.geometry(f"{window_width}x{window_height}+{x}+{y}")
+        for item in self.sale_tree.get_children():
+            product_name, price, quantity = self.sale_tree.item(item, "values")
+            price = float(price.strip("$"))
+            quantity = int(quantity)
+            total += price * quantity
+            sale_items.append((product_name, price, quantity))
 
-            # Contenido de la ventana
-            tk.Label(
-                payment_window,
-                text="Resumen de la Venta",
-                font=("Arial", 16, "bold"),
-                bg="#f0f0f0",
-                fg="#000"
-            ).pack(pady=15)
+        # Obtener cliente seleccionado
+        selected_client = self.client_combobox.get()
+        if selected_client != "Sin cliente":
+            client_name = selected_client.split(" (Saldo:")[0]
+            self.process_client_sale(client_name, total, sale_items)
+        else:
+            self.process_regular_sale(total, sale_items)
 
-            tk.Label(
-                payment_window,
-                text=f"Total a Pagar: ${total:.2f}",
-                font=("Arial", 14, "bold"),
-                bg="#f0f0f0",
-                fg="#27AE60"
-            ).pack(pady=10)
+    def process_client_sale(self, client_name, total, sale_items):
+        conn = connect()
+        cursor = conn.cursor()
+        cursor.execute("SELECT balance FROM clients WHERE name = ?", (client_name,))
+        current_balance = cursor.fetchone()[0]
+        conn.close()
 
-            tk.Label(
-                payment_window,
-                text="Monto Recibido:",
-                font=("Arial", 12),
-                bg="#f0f0f0",
-                fg="#000"
-            ).pack(pady=5)
+        # Ventana de opciones de pago
+        payment_window = tk.Toplevel(self.master)
+        payment_window.title("Pago con Cliente")
+        payment_window.configure(bg="#f0f0f0")
+        
+        window_width = 400
+        window_height = 450
+        screen_width = payment_window.winfo_screenwidth()
+        screen_height = payment_window.winfo_screenheight()
+        x = (screen_width - window_width) // 2
+        y = (screen_height - window_height) // 2
+        payment_window.geometry(f"{window_width}x{window_height}+{x}+{y}")
 
-            payment_entry = tk.Entry(
-                payment_window,
-                font=("Arial", 12),
-                width=15,
-                bd=2,
-                relief=tk.GROOVE
-            )
-            payment_entry.pack(pady=5)
+        tk.Label(
+            payment_window,
+            text=f"Cliente: {client_name}",
+            font=("Arial", 14, "bold"),
+            bg="#f0f0f0",
+            fg="#000"
+        ).pack(pady=10)
 
-            def process_payment():
-                payment = payment_entry.get()
+        tk.Label(
+            payment_window,
+            text=f"Saldo Actual: ${current_balance:.2f}",
+            font=("Arial", 12),
+            bg="#f0f0f0",
+            fg="#000"
+        ).pack(pady=5)
+
+        tk.Label(
+            payment_window,
+            text=f"Total a Pagar: ${total:.2f}",
+            font=("Arial", 12),
+            bg="#f0f0f0",
+            fg="#27AE60"
+        ).pack(pady=5)
+
+        # Variable para el método de pago
+        payment_method = tk.StringVar(value="efectivo")
+
+        tk.Radiobutton(
+            payment_window,
+            text="Pagar en efectivo",
+            variable=payment_method,
+            value="efectivo",
+            bg="#f0f0f0"
+        ).pack(pady=5)
+
+        tk.Radiobutton(
+            payment_window,
+            text="Usar saldo",
+            variable=payment_method,
+            value="saldo",
+            bg="#f0f0f0"
+        ).pack(pady=5)
+
+        tk.Radiobutton(
+            payment_window,
+            text="Añadir a la deuda",
+            variable=payment_method,
+            value="deuda",
+            bg="#f0f0f0"
+        ).pack(pady=5)
+
+        payment_entry = tk.Entry(
+            payment_window,
+            font=("Arial", 12),
+            width=15,
+            bd=2,
+            relief=tk.GROOVE
+        )
+        payment_entry.pack(pady=10)
+
+        def process_payment():
+            method = payment_method.get()
+            if method == "efectivo":
                 try:
-                    payment = float(payment)
+                    payment = float(payment_entry.get())
                     if payment >= total:
-                        change = payment - total
-                        messagebox.showinfo(
-                            "Venta Exitosa",
-                            f"Venta realizada con éxito\nCambio a entregar: ${change:.2f}"
-                        )
-                        payment_window.destroy()
                         self.complete_sale(sale_items, total)
+                        change = payment - total
+                        messagebox.showinfo("Éxito", f"Venta completada. Cambio: ${change:.2f}")
+                        payment_window.destroy()
                     else:
-                        messagebox.showerror("Error", "El monto recibido es insuficiente")
+                        messagebox.showerror("Error", "Monto insuficiente")
                 except ValueError:
-                    messagebox.showerror("Error", "Por favor, ingrese un monto válido")
+                    messagebox.showerror("Error", "Monto inválido")
+            
+            elif method == "saldo":
+                if current_balance >= total:
+                    new_balance = current_balance - total
+                    conn = connect()
+                    cursor = conn.cursor()
+                    cursor.execute("UPDATE clients SET balance = ? WHERE name = ?", (new_balance, client_name))
+                    conn.commit()
+                    conn.close()
+                    self.complete_sale(sale_items, total)
+                    messagebox.showinfo("Éxito", f"Venta completada. Nuevo saldo: ${new_balance:.2f}")
+                    payment_window.destroy()
+                else:
+                    messagebox.showerror("Error", "Saldo insuficiente")
+            
+            elif method == "deuda":
+                new_balance = current_balance - total
+                conn = connect()
+                cursor = conn.cursor()
+                cursor.execute("UPDATE clients SET balance = ? WHERE name = ?", (new_balance, client_name))
+                conn.commit()
+                conn.close()
+                self.complete_sale(sale_items, total)
+                messagebox.showinfo("Éxito", f"Venta completada. Nueva deuda: ${abs(new_balance):.2f}")
+                payment_window.destroy()
 
-            tk.Button(
-                payment_window,
-                text="Procesar Pago",
-                command=process_payment,
-                font=("Arial", 12, "bold"),
-                bg="#27AE60",
-                fg="white",
-                padx=20,
-                pady=10,
-                cursor="hand2"
-            ).pack(pady=20)
+        tk.Button(
+            payment_window,
+            text="Procesar Pago",
+            command=process_payment,
+            font=("Arial", 12, "bold"),
+            bg="#27AE60",
+            fg="white",
+            padx=20,
+            pady=10,
+            cursor="hand2"
+        ).pack(pady=20)
+
+    def process_regular_sale(self, total, sale_items):
+        payment_window = tk.Toplevel(self.master)
+        payment_window.title("Pago en Efectivo")
+        payment_window.configure(bg="#f0f0f0")
+        
+        window_width = 400
+        window_height = 200
+        screen_width = payment_window.winfo_screenwidth()
+        screen_height = payment_window.winfo_screenheight()
+        x = (screen_width - window_width) // 2
+        y = (screen_height - window_height) // 2
+        payment_window.geometry(f"{window_width}x{window_height}+{x}+{y}")
+
+        tk.Label(
+            payment_window,
+            text="Total a Pagar:",
+            font=("Arial", 14, "bold"),
+            bg="#f0f0f0",
+            fg="#000"
+        ).pack(pady=10)
+
+        tk.Label(
+            payment_window,
+            text=f"${total:.2f}",
+            font=("Arial", 12),
+            bg="#f0f0f0",
+            fg="#27AE60"
+        ).pack(pady=5)
+
+        payment_entry = tk.Entry(
+            payment_window,
+            font=("Arial", 12),
+            width=15,
+            bd=2,
+            relief=tk.GROOVE
+        )
+        payment_entry.pack(pady=10)
+
+        def process_payment():
+            try:
+                payment = float(payment_entry.get())
+                if payment >= total:
+                    self.complete_sale(sale_items, total)
+                    change = payment - total
+                    messagebox.showinfo("Éxito", f"Venta completada. Cambio: ${change:.2f}")
+                    payment_window.destroy()
+                else:
+                    messagebox.showerror("Error", "Monto insuficiente")
+            except ValueError:
+                messagebox.showerror("Error", "Monto inválido")
+
+        tk.Button(
+            payment_window,
+            text="Procesar Pago",
+            command=process_payment,
+            font=("Arial", 12, "bold"),
+            bg="#27AE60",
+            fg="white",
+            padx=20,
+            pady=10,
+            cursor="hand2"
+        ).pack(pady=20)
+
 
     def complete_sale(self, sale_items, total):
         conn = connect()
