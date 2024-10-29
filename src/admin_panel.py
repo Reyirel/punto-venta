@@ -294,14 +294,15 @@ class AdminPanel:
         if not selected_item:
             messagebox.showerror("Error", "Por favor, seleccione un usuario para editar")
             return
-    
+
         user = self.user_tree.item(selected_item)['values']
-        
+
         # Create a new window for editing the user
         edit_window = tk.Toplevel(self.master)
         edit_window.title(f"Editar Usuario: {user[0]}")
-        edit_window.geometry("400x300")
-        
+        edit_window.geometry("400x335")
+        edit_window.resizable(False, False)
+
         # Center the window on the screen
         edit_window.update_idletasks()
         width = edit_window.winfo_width()
@@ -309,40 +310,51 @@ class AdminPanel:
         x = (edit_window.winfo_screenwidth() // 2) - (width // 2)
         y = (edit_window.winfo_screenheight() // 2) - (height // 2)
         edit_window.geometry(f'{width}x{height}+{x}+{y}')
-    
-        tk.Label(edit_window, text="Nombre de usuario:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
-        username_entry = tk.Entry(edit_window)
+
+        # Create a frame to hold the content
+        content_frame = tk.Frame(edit_window)
+        content_frame.pack(expand=True, fill="both", padx=20, pady=20)
+
+        # Username entry
+        username_label = tk.Label(content_frame, text="Nombre de usuario:", font=("Helvetica", 12))
+        username_label.pack(pady=(0, 5))
+        username_entry = tk.Entry(content_frame, font=("Helvetica", 12))
         username_entry.insert(0, user[0])
-        username_entry.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
-    
-        tk.Label(edit_window, text="Contraseña:").grid(row=1, column=0, padx=5, pady=5, sticky="w")
-        password_entry = tk.Entry(edit_window, show="*")
+        username_entry.pack(fill="x", pady=(0, 10))
+
+        # Password entry
+        password_label = tk.Label(content_frame, text="Contraseña:", font=("Helvetica", 12))
+        password_label.pack(pady=(0, 5))
+        password_entry = tk.Entry(content_frame, font=("Helvetica", 12), show="*")
         password_entry.insert(0, user[1])
-        password_entry.grid(row=1, column=1, padx=5, pady=5, sticky="ew")
-    
-        # Add a Checkbutton to show/hide password
+        password_entry.pack(fill="x", pady=(0, 10))
+
+        # Show/hide password checkbox
         def toggle_password():
             if password_entry.cget('show') == '*':
                 password_entry.config(show='')
             else:
                 password_entry.config(show='*')
-    
+
         show_password_var = tk.BooleanVar()
-        show_password_check = tk.Checkbutton(edit_window, text="Mostrar contraseña", variable=show_password_var, command=toggle_password)
-        show_password_check.grid(row=2, column=1, padx=5, pady=5, sticky="w")
-    
-        tk.Label(edit_window, text="Rol:").grid(row=3, column=0, padx=5, pady=5, sticky="w")
+        show_password_check = tk.Checkbutton(content_frame, text="Mostrar contraseña", variable=show_password_var, command=toggle_password, font=("Helvetica", 10))
+        show_password_check.pack(anchor="w", pady=(0, 10))
+
+        # Role radio buttons
+        role_label = tk.Label(content_frame, text="Rol:", font=("Helvetica", 12))
+        role_label.pack(pady=(0, 5))
         role_var = tk.StringVar(value=user[2])
-        role_frame = tk.Frame(edit_window)
-        role_frame.grid(row=3, column=1, padx=5, pady=5, sticky="w")
-        tk.Radiobutton(role_frame, text="Administrador", variable=role_var, value="admin").pack(side=tk.LEFT, padx=(0, 10))
-        tk.Radiobutton(role_frame, text="Vendedor", variable=role_var, value="vendedor").pack(side=tk.LEFT)
-    
+        role_frame = tk.Frame(content_frame)
+        role_frame.pack(anchor="w", pady=(0, 10))
+        tk.Radiobutton(role_frame, text="Administrador", variable=role_var, value="admin", font=("Helvetica", 10)).pack(side=tk.LEFT, padx=(0, 10))
+        tk.Radiobutton(role_frame, text="Vendedor", variable=role_var, value="vendedor", font=("Helvetica", 10)).pack(side=tk.LEFT)
+
+        # Save changes button
         def save_changes():
             new_username = username_entry.get()
             new_password = password_entry.get()
             new_role = role_var.get()
-    
+
             if new_username and new_password:
                 conn = connect()
                 cursor = conn.cursor()
@@ -355,12 +367,10 @@ class AdminPanel:
                 self.load_users()  # Reload the user table
             else:
                 messagebox.showerror("Error", "Por favor, complete todos los campos")
-    
-        tk.Button(edit_window, text="Guardar Cambios", command=save_changes).grid(row=4, column=0, columnspan=2, pady=10)
-    
-        # Configure grid weights
-        edit_window.grid_columnconfigure(1, weight=1)
 
+        save_button = tk.Button(content_frame, text="Guardar Cambios", command=save_changes, bg="#00b894", fg="white", font=("Helvetica", 12))
+        save_button.pack(pady=5)
+        
     def delete_user(self):
         selected_item = self.user_tree.selection()
         if not selected_item:
@@ -575,22 +585,35 @@ class AdminPanel:
         item = self.client_tree.item(selected[0], "values")
         client_name = item[0]
 
-        # Ventana para editar nombre
+        # Ventana para editar el nombre del cliente
         edit_window = tk.Toplevel(self.master)
         edit_window.title("Editar Nombre de Cliente")
         edit_window.configure(bg="#f0f0f0")
+        edit_window.geometry("300x180")
+
+        # Centrado de la ventana
+        edit_window.update_idletasks()
+        width = edit_window.winfo_width()
+        height = edit_window.winfo_height()
+        x = (edit_window.winfo_screenwidth() // 2) - (width // 2)
+        y = (edit_window.winfo_screenheight() // 2) - (height // 2)
+        edit_window.geometry(f'{width}x{height}+{x}+{y}')
+
+        # Contenedor para centrar los elementos
+        content_frame = tk.Frame(edit_window, bg="#f0f0f0", padx=20, pady=20)
+        content_frame.pack(expand=True)
 
         tk.Label(
-            edit_window,
+            content_frame,
             text="Nuevo Nombre:",
             font=("Arial", 11),
             bg="#f0f0f0",
             fg="#000"
-        ).pack(pady=10)
+        ).grid(row=0, column=0, sticky="w", pady=5)
 
-        name_entry = tk.Entry(edit_window, font=("Arial", 11), width=30)
+        name_entry = tk.Entry(content_frame, font=("Arial", 11), width=25)
         name_entry.insert(0, client_name)
-        name_entry.pack(pady=5)
+        name_entry.grid(row=1, column=0, padx=5, pady=5)
 
         def save_name_change():
             new_name = name_entry.get().strip()
@@ -606,17 +629,21 @@ class AdminPanel:
             else:
                 messagebox.showerror("Error", "El nombre no puede estar vacío.")
 
-        tk.Button(
-            edit_window,
+        save_button = tk.Button(
+            content_frame,
             text="Guardar Cambios",
             command=save_name_change,
-            font=("Arial", 11),
-            bg="#2ECC71",
+            font=("Arial", 11, "bold"),
+            bg="#00b894",
             fg="white",
             padx=20,
             pady=5,
             cursor="hand2"
-        ).pack(pady=15)
+        )
+        save_button.grid(row=2, column=0, pady=(15, 0))
+
+        # Configuración de la columna para centrar el contenido
+        content_frame.grid_columnconfigure(0, weight=1)
 
     def delete_client(self):
         selected = self.client_tree.selection()
@@ -777,32 +804,53 @@ class AdminPanel:
         # Crear una nueva ventana para modificar el producto
         modify_window = tk.Toplevel(self.master)
         modify_window.title(f"Modificar Producto: {product[1]}")
+        modify_window.geometry("450x350")
+        modify_window.resizable(False, False)
+
+        # Centrar la ventana en la pantalla
+        modify_window.update_idletasks()
+        width = modify_window.winfo_width()
+        height = modify_window.winfo_height()
+        x = (modify_window.winfo_screenwidth() // 2) - (width // 2)
+        y = (modify_window.winfo_screenheight() // 2) - (height // 2)
+        modify_window.geometry(f"{width}x{height}+{x}+{y}")
+
+        # Frame principal para centrar elementos
+        main_frame = tk.Frame(modify_window, padx=20, pady=20)
+        main_frame.pack(expand=True)
+
+        # Título
+        title_label = tk.Label(main_frame, text="Modificar Producto", font=("Arial", 16, "bold"))
+        title_label.grid(row=0, column=0, columnspan=2, pady=(0, 20))
+
+        # Elementos de entrada organizados
+        fields = {
+            "Nombre": product[1],
+            "Código de Barras": product[2],
+            "Precio": product[3],
+            "Stock": product[4]
+        }
         
-        tk.Label(modify_window, text="Nombre:").grid(row=0, column=0, padx=5, pady=5)
-        name_entry = tk.Entry(modify_window)
-        name_entry.insert(0, product[1])
-        name_entry.grid(row=0, column=1, padx=5, pady=5)
+        entries = {}
+        for i, (label_text, initial_value) in enumerate(fields.items(), start=1):
+            label = tk.Label(main_frame, text=f"{label_text}:", font=("Arial", 12), anchor='w')
+            label.grid(row=i, column=0, sticky="e", padx=10, pady=5)
+            
+            entry = tk.Entry(main_frame, font=("Arial", 12))
+            entry.insert(0, initial_value)
+            entry.grid(row=i, column=1, padx=10, pady=5, sticky="ew")
+            entries[label_text] = entry
 
-        tk.Label(modify_window, text="Código de Barras:").grid(row=1, column=0, padx=5, pady=5)
-        barcode_entry = tk.Entry(modify_window)
-        barcode_entry.insert(0, product[2])
-        barcode_entry.grid(row=1, column=1, padx=5, pady=5)
+        # Expandir las columnas para centrar los elementos horizontalmente
+        main_frame.grid_columnconfigure(0, weight=1)
+        main_frame.grid_columnconfigure(1, weight=1)
 
-        tk.Label(modify_window, text="Precio:").grid(row=2, column=0, padx=5, pady=5)
-        price_entry = tk.Entry(modify_window)
-        price_entry.insert(0, product[3])
-        price_entry.grid(row=2, column=1, padx=5, pady=5)
-
-        tk.Label(modify_window, text="Stock:").grid(row=3, column=0, padx=5, pady=5)
-        stock_entry = tk.Entry(modify_window)
-        stock_entry.insert(0, product[4])
-        stock_entry.grid(row=3, column=1, padx=5, pady=5)
-
+        # Función para guardar cambios
         def save_changes():
-            new_name = name_entry.get()
-            new_barcode = barcode_entry.get()
-            new_price = price_entry.get()
-            new_stock = stock_entry.get()
+            new_name = entries["Nombre"].get()
+            new_barcode = entries["Código de Barras"].get()
+            new_price = entries["Precio"].get()
+            new_stock = entries["Stock"].get()
 
             if new_name and new_barcode and new_price and new_stock:
                 try:
@@ -828,8 +876,9 @@ class AdminPanel:
             else:
                 messagebox.showerror("Error", "Por favor, complete todos los campos")
 
+        # Función para actualizar el stock
         def update_stock():
-            new_stock = stock_entry.get()
+            new_stock = entries["Stock"].get()
             if new_stock:
                 try:
                     new_stock = int(new_stock)
@@ -837,15 +886,10 @@ class AdminPanel:
                     conn = connect()
                     cursor = conn.cursor()
                     
-                    # Obtener el stock actual del producto
                     cursor.execute('SELECT stock FROM products WHERE id = ?', (product[0],))
                     current_stock = cursor.fetchone()[0]
                     
-                    # Actualizar el stock según la lógica especificada
-                    if current_stock < 0:
-                        updated_stock = current_stock + new_stock
-                    else:
-                        updated_stock = current_stock + new_stock
+                    updated_stock = current_stock + new_stock
                     
                     cursor.execute('''
                         UPDATE products 
@@ -863,8 +907,12 @@ class AdminPanel:
             else:
                 messagebox.showerror("Error", "Por favor, ingrese una cantidad de stock")
 
-        tk.Button(modify_window, text="Guardar Cambios", command=save_changes).grid(row=4, column=0, columnspan=2, pady=10)
-        tk.Button(modify_window, text="Actualizar Cantidad de Stock", command=update_stock).grid(row=5, column=0, columnspan=2, pady=10)
+        # Botones de acción
+        button_frame = tk.Frame(main_frame)
+        button_frame.grid(row=len(fields) + 1, column=0, columnspan=2, pady=15)
+
+        tk.Button(button_frame, text="Guardar Cambios", command=save_changes, bg="#00b894", fg="white", font=("Arial", 12), width=20).pack(side="left", padx=10)
+        tk.Button(button_frame, text="Actualizar Stock", command=update_stock, bg="#3498db", fg="white", font=("Arial", 12), width=20).pack(side="left", padx=10)
 
     def delete_product(self):
         selected_item = self.tree.selection()
@@ -1435,7 +1483,7 @@ class AdminPanel:
             
             # Centrar la ventana
             window_width = 300
-            window_height = 150
+            window_height = 180
             screen_width = modify_window.winfo_screenwidth()
             screen_height = modify_window.winfo_screenheight()
             x = (screen_width - window_width) // 2
@@ -1482,7 +1530,7 @@ class AdminPanel:
                 text="Guardar",
                 command=save_changes,
                 font=("Arial", 11),
-                bg="#2ECC71",
+                bg="#00b894",
                 fg="white",
                 padx=20,
                 pady=5,
@@ -1525,80 +1573,135 @@ class AdminPanel:
         cursor.execute("SELECT balance FROM clients WHERE name = ?", (client_name,))
         current_balance = cursor.fetchone()[0]
         conn.close()
-
+    
         # Ventana de opciones de pago
         payment_window = tk.Toplevel(self.master)
         payment_window.title("Pago con Cliente")
         payment_window.configure(bg="#f0f0f0")
-        
+        payment_window.resizable(False, False)  # Evitar redimensionar
+    
+        # Configuración de la ventana
         window_width = 400
-        window_height = 450
+        window_height = 350  # Aumentar la altura
         screen_width = payment_window.winfo_screenwidth()
         screen_height = payment_window.winfo_screenheight()
         x = (screen_width - window_width) // 2
         y = (screen_height - window_height) // 2
         payment_window.geometry(f"{window_width}x{window_height}+{x}+{y}")
-
+    
+        # Frame principal para organizar elementos
+        main_frame = tk.Frame(payment_window, bg="#f0f0f0", pady=10, padx=20)
+        main_frame.pack(expand=True, fill="both")
+    
+        # Información del cliente y total
+        info_frame = tk.Frame(main_frame, bg="#f0f0f0")
+        info_frame.pack(fill="x", pady=(0, 5))
+    
         tk.Label(
-            payment_window,
+            info_frame,
             text=f"Cliente: {client_name}",
-            font=("Arial", 14, "bold"),
+            font=("Arial", 16, "bold"),  # Aumentar tamaño de fuente
             bg="#f0f0f0",
-            fg="#000"
-        ).pack(pady=10)
-
+            fg="#333333"
+        ).pack(anchor="center")  # Centrar
+    
+        balance_color = "#27AE60" if current_balance >= 0 else "#E74C3C"
         tk.Label(
-            payment_window,
+            info_frame,
             text=f"Saldo Actual: ${current_balance:.2f}",
-            font=("Arial", 12),
+            font=("Arial", 14),  # Aumentar tamaño de fuente
             bg="#f0f0f0",
-            fg="#000"
-        ).pack(pady=5)
-
+            fg=balance_color
+        ).pack(anchor="center", pady=(5, 0))  # Centrar y reducir espacio
+    
         tk.Label(
-            payment_window,
+            info_frame,
             text=f"Total a Pagar: ${total:.2f}",
-            font=("Arial", 12),
+            font=("Arial", 14, "bold"),  # Aumentar tamaño de fuente
             bg="#f0f0f0",
             fg="#27AE60"
-        ).pack(pady=5)
-
+        ).pack(anchor="center", pady=(5, 0))  # Centrar y reducir espacio
+    
+        # Frame para opciones de pago
+        options_frame = tk.Frame(main_frame, bg="#f0f0f0")
+        options_frame.pack(fill="x", pady=10)  # Reducir espacio
+    
         # Variable para el método de pago
-        payment_method = tk.StringVar(value="efectivo")
-
-        tk.Radiobutton(
-            payment_window,
-            text="Pagar en efectivo",
-            variable=payment_method,
-            value="efectivo",
+        payment_method = tk.StringVar()
+        
+        # Frame para el pago en efectivo
+        payment_entry_frame = tk.Frame(main_frame, bg="#f0f0f0")
+        payment_entry_frame.pack(fill="x", pady=10)
+        
+        # Crear el label y entry una sola vez
+        payment_label = tk.Label(
+            payment_entry_frame,
+            text="Monto en efectivo:",
+            font=("Arial", 11),
             bg="#f0f0f0"
-        ).pack(pady=5)
-
-        tk.Radiobutton(
-            payment_window,
-            text="Usar saldo",
-            variable=payment_method,
-            value="saldo",
-            bg="#f0f0f0"
-        ).pack(pady=5)
-
-        tk.Radiobutton(
-            payment_window,
-            text="Añadir a la deuda",
-            variable=payment_method,
-            value="deuda",
-            bg="#f0f0f0"
-        ).pack(pady=5)
-
+        )
+        
         payment_entry = tk.Entry(
-            payment_window,
+            payment_entry_frame,
             font=("Arial", 12),
             width=15,
             bd=2,
             relief=tk.GROOVE
         )
-        payment_entry.pack(pady=10)
-
+    
+        def on_payment_method_change(*args):
+            # Limpiar opciones existentes
+            for widget in options_frame.winfo_children():
+                widget.destroy()
+            
+            # Ocultar el label y entry de efectivo
+            payment_label.pack_forget()
+            payment_entry.pack_forget()
+            
+            # Mostrar opciones según el saldo
+            if current_balance >= total:
+                tk.Radiobutton(
+                    options_frame,
+                    text="Usar saldo",
+                    variable=payment_method,
+                    value="saldo",
+                    bg="#f0f0f0",
+                    font=("Arial", 11)
+                ).pack(anchor="center", pady=2)  # Centrar y reducir espacio
+            else:
+                tk.Radiobutton(
+                    options_frame,
+                    text="Añadir a la deuda",
+                    variable=payment_method,
+                    value="deuda",
+                    bg="#f0f0f0",
+                    font=("Arial", 11)
+                ).pack(anchor="center", pady=2)  # Centrar y reducir espacio
+    
+            # Siempre mostrar opción de efectivo
+            tk.Radiobutton(
+                options_frame,
+                text="Pagar en efectivo",
+                variable=payment_method,
+                value="efectivo",
+                bg="#f0f0f0",
+                font=("Arial", 11)
+            ).pack(anchor="center", pady=2)  # Centrar y reducir espacio
+    
+            # Mostrar entry solo cuando se selecciona efectivo
+            if payment_method.get() == "efectivo":
+                payment_label.pack(side="left", padx=(0, 10))
+                payment_entry.pack(side="left")
+    
+        # Configurar el callback para el cambio de método de pago
+        payment_method.trace_add("write", on_payment_method_change)
+        
+        # Establecer valor inicial según el saldo
+        if current_balance >= total:
+            payment_method.set("saldo")
+        else:
+            payment_method.set("deuda")
+        
         def process_payment():
             method = payment_method.get()
             if method == "efectivo":
@@ -1638,9 +1741,10 @@ class AdminPanel:
                 self.complete_sale(sale_items, total)
                 messagebox.showinfo("Éxito", f"Venta completada. Nueva deuda: ${abs(new_balance):.2f}")
                 payment_window.destroy()
-
+    
+        # Botón de procesar pago
         tk.Button(
-            payment_window,
+            main_frame,
             text="Procesar Pago",
             command=process_payment,
             font=("Arial", 12, "bold"),
@@ -1648,9 +1752,11 @@ class AdminPanel:
             fg="white",
             padx=20,
             pady=10,
-            cursor="hand2"
-        ).pack(pady=20)
-
+            cursor="hand2",
+            relief=tk.FLAT,
+            activebackground="#219A52"
+        ).pack(pady=10)
+            
     def process_regular_sale(self, total, sale_items):
         payment_window = tk.Toplevel(self.master)
         payment_window.title("Pago en Efectivo")
