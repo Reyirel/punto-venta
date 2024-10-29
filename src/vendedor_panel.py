@@ -10,6 +10,7 @@ class VendedorPanel:
     def __init__(self, master, username):
         self.master = master
         self.master.title("Panel de Vendedor")
+        self.iconbitmap("./icons/sales_bag_shopping_bargain_retail_icon-icons.com_55340.ico")
         self.master.state('zoomed')
         self.master.resizable(0, 0)
 
